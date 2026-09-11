@@ -544,6 +544,14 @@ input,textarea,select{font-family:inherit;}
 .auth-brand-foot{font-size:12px;opacity:.75;position:relative;z-index:1;}
 .auth-form-panel{flex:1;padding:52px 46px;display:flex;flex-direction:column;justify-content:center;}
 .cloud-auth-card{width:100%;max-width:330px;margin:0 auto;}
+.avatar-zoomable{cursor:zoom-in;transition:transform .18s ease,box-shadow .18s ease;}
+.avatar-zoomable:hover{transform:scale(1.05);box-shadow:0 8px 24px rgba(91,87,217,.35);}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+.account-chip{margin:0 14px 18px;padding:10px 12px;border-radius:14px;background:var(--paper-2);display:flex;align-items:center;gap:9px;font-size:12px;color:var(--muted);font-weight:600;}
+.account-chip .ac-dot{width:7px;height:7px;border-radius:50%;background:var(--ok);flex-shrink:0;}
+.account-chip .ac-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.account-chip .ac-logout{background:none;border:none;cursor:pointer;font-size:15px;padding:2px 4px;border-radius:6px;color:var(--muted);flex-shrink:0;}
+.account-chip .ac-logout:hover{background:rgba(230,65,95,.12);color:var(--bad);}
 @media(max-width:760px){
   .auth-brand-panel{display:none;}
   .auth-mobile-brand{display:flex !important;}
@@ -574,12 +582,12 @@ input,textarea,select{font-family:inherit;}
       <div class="sg-title" id="sgTitle">Oi! 👋</div>
       <div class="sg-sub" id="sgSub">Seu centro de comando começa aqui.</div>
     </div>
-    <div id="storageBadge" style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);padding:0 10px 14px;font-weight:600;"></div>
-    <div id="sidebarLogoutRow" style="padding:0 10px 14px;"></div>
+    <div id="accountChip" class="account-chip"></div>
 
     <div class="nav-group">
       <div class="nav-group-label">VOCÊ</div>
       <button class="nav-item" data-tab="perfil"><span class="nav-icon" id="perfilNavIcon">👤</span>Meu Perfil</button>
+      <button class="nav-item" data-tab="config"><span class="nav-icon">⚙️</span>Configurações</button>
     </div>
     <div class="nav-group">
       <div class="nav-group-label">ESTUDOS</div>
@@ -619,7 +627,6 @@ input,textarea,select{font-family:inherit;}
     <div class="nav-group">
       <div class="nav-group-label">SISTEMA</div>
       <button class="nav-item" data-tab="historico"><span class="nav-icon">📅</span>Histórico</button>
-      <button class="nav-item" data-tab="config"><span class="nav-icon">⚙️</span>Configurações</button>
     </div>
   </nav>
 
@@ -728,6 +735,7 @@ let DB = {
   provasEstagio: [], // {id,lugar,cidade,inscricaoAte,inscrito,edital,dataProva,horaProva,modalidade,teletrabalho,dataFinal,bolsa,colocacao,resultado,link,obs}
   desabafos: [], // {id,date,ts,text,mood}
   watchlist: [], // {id,title,type,watched,platform,notes}
+  errorNotes: [], // {id,date,subjectId,topicId,text}
   videoBlocks: [], // {id,name,color,icon}
   videos: [], // {id,blockId,title,url,notes,watched,addedDate}
   mantras: [],
@@ -746,7 +754,7 @@ let DB = {
   seeded:false
 };
 
-const KEYS = ['subjects','studySessions','questionSessions','goals','concursos','provasEstagio','desabafos','watchlist','flashcards','books','brainLog','meditationLog','sleepLog','simulados','spotifyAuth','gameScores','videoBlocks','videos','mantras','lectioDraft','lectioHistory','prayerToday','prayerHistory','events','quickNotes','profile','liturgyByDate','gospelCache','gospelFavorites','achievementsSeen','settings','seeded'];
+const KEYS = ['subjects','studySessions','questionSessions','goals','concursos','provasEstagio','desabafos','watchlist','errorNotes','flashcards','books','brainLog','meditationLog','sleepLog','simulados','spotifyAuth','gameScores','videoBlocks','videos','mantras','lectioDraft','lectioHistory','prayerToday','prayerHistory','events','quickNotes','profile','liturgyByDate','gospelCache','gospelFavorites','achievementsSeen','settings','seeded'];
 
 /* ---------------------------------------------------------
    STORAGE LAYER
@@ -1492,23 +1500,21 @@ function updateSidebarGreeting(){
   }
   const brandSub = document.getElementById('brandSub');
   if(brandSub) brandSub.textContent = nm? `o estudo de ${nm}` : 'seu centro de estudos';
-  const badge = document.getElementById('storageBadge');
-  if(badge){
-    const map = {supabase:['☁️','Sincronizado ('+(spUser?spUser.email:'nuvem')+')'], firebase:['☁️','Sincronizado ('+(fbUser?fbUser.email:'nuvem')+')'], cloud:['☁️','Salvando na nuvem'], local:['💾','Salvando neste navegador'], memory:['⚠️','Sem salvamento — clique em Configurações']};
+  const chip = document.getElementById('accountChip');
+  if(chip){
+    const map = {supabase:['☁️','Sincronizado'], firebase:['☁️','Sincronizado'], cloud:['☁️','Nuvem do Claude'], local:['💾','Este navegador'], memory:['⚠️','Sem salvamento']};
     const [icon,label] = map[storageMode]||map.memory;
-    badge.innerHTML=''; badge.appendChild(el('span',{},icon)); badge.appendChild(el('span',{},label));
-    badge.style.color = storageMode==='memory'? 'var(--bad)' : 'var(--muted)';
-  }
-  const logoutRow = document.getElementById('sidebarLogoutRow');
-  if(logoutRow){
-    logoutRow.innerHTML='';
+    const emailShown = storageMode==='supabase'? (spUser?spUser.email:'') : storageMode==='firebase'? (fbUser?fbUser.email:'') : '';
+    chip.innerHTML='';
+    chip.appendChild(el('span',{class:'ac-dot',style: storageMode==='memory'?'background:var(--bad);':''}));
+    chip.appendChild(el('div',{class:'ac-label',title: emailShown||label}, [icon+' '+label, emailShown? el('div',{style:'font-size:10.5px;font-weight:500;opacity:.85;'}, emailShown) : null]));
     if(storageMode==='supabase' || storageMode==='firebase'){
-      logoutRow.appendChild(el('button',{class:'btn btn-ghost btn-sm',style:'width:100%;',onclick: async ()=>{
+      chip.appendChild(el('button',{class:'ac-logout', title:'Sair da conta', onclick: async ()=>{
         if(!confirm('Sair da conta nesse aparelho? Seus dados continuam salvos na nuvem — só não vão aparecer aqui até você entrar de novo.')) return;
         if(storageMode==='supabase') await spClient.auth.signOut();
         else await fbAuth.signOut();
         location.reload();
-      }},'🚪 Sair da conta'));
+      }},'🚪'));
     }
   }
   const mark = document.getElementById('brandMark');
@@ -1780,6 +1786,15 @@ function openAvatarGenerator(onSave){
     }},'💾 Usar este avatar')
   ]);
   openModal('🎨 Gerar avatar', body, foot);
+}
+function openPhotoLightbox(src){
+  const overlay = el('div',{style:'position:fixed;inset:0;z-index:900;background:rgba(20,18,30,.93);display:flex;align-items:center;justify-content:center;cursor:zoom-out;padding:30px;animation:fadeIn .15s ease;',
+    onclick:()=>overlay.remove()
+  },[
+    el('img',{src, style:'max-width:88vw;max-height:88vh;border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.55);object-fit:contain;'}),
+    el('button',{style:'position:absolute;top:22px;right:26px;background:rgba(255,255,255,.16);border:none;color:#fff;width:42px;height:42px;border-radius:50%;font-size:20px;cursor:pointer;backdrop-filter:blur(4px);',onclick:(e)=>{e.stopPropagation();overlay.remove();}},'✕')
+  ]);
+  document.body.appendChild(overlay);
 }
 function openPhotoEditor(fileOrDataUrl, onSave, opts){
   opts = opts || {};
@@ -2859,14 +2874,75 @@ RENDERERS.questoes = function(main){
   if(!DB.subjects.length){ main.appendChild(el('div',{class:'card'},[el('div',{class:'empty'},'Cadastre matérias primeiro.')])); return; }
 
   const seg = el('div',{class:'seg',style:'margin-bottom:18px;'});
-  [['registrar','📝 Registrar'],['simulado','🎯 Simulado']].forEach(([key,label])=>{
+  [['registrar','📝 Registrar'],['simulado','🎯 Simulado'],['erros','📓 Caderno de Erros']].forEach(([key,label])=>{
     seg.appendChild(el('button',{class: questoesSubTab===key?'active':'', onclick:()=>{ questoesSubTab=key; go('questoes'); }}, label));
   });
   main.appendChild(seg);
 
   if(questoesSubTab==='registrar') renderQuestoesRegistrar(main);
+  else if(questoesSubTab==='erros') renderCadernoErros(main);
   else renderQuestoesSimulado(main);
 };
+
+let cadernoErrosFilter = 'todos';
+function renderCadernoErros(main){
+  main.appendChild(el('div',{class:'card',style:'margin-bottom:16px;background:linear-gradient(120deg,#fdeef2,#fff8ec);border-color:#f6d9e3;'},[
+    el('div',{style:'font-size:13.5px;line-height:1.5;'},[
+      el('b',{},'📓 Anote o que você errou, não só o placar. '),
+      'Quando você escreve o motivo do erro, é muito mais difícil repetir ele na prova.'
+    ])
+  ]));
+
+  const formCard = el('div',{class:'card',style:'margin-bottom:16px;'});
+  formCard.appendChild(el('div',{class:'card-title'},'Nova anotação de erro'));
+  const subjSel = el('select',{});
+  DB.subjects.forEach(s=>subjSel.appendChild(el('option',{value:s.id},s.name)));
+  const topicSel = el('select',{});
+  function fillT(){ topicSel.innerHTML=''; const s=DB.subjects.find(x=>x.id===subjSel.value); (s?s.topics:[]).forEach(t=>topicSel.appendChild(el('option',{value:t.id},t.name))); }
+  fillT(); subjSel.addEventListener('change',fillT);
+  const textInp = el('textarea',{placeholder:'O que você errou e por quê? Ex: "Confundi prazo de embargos de declaração — são 5 dias, não 15. Reler art. 1.023 CPC."'});
+  formCard.appendChild(el('div',{class:'row'},[
+    el('div',{class:'field'},[el('label',{},'Matéria'), subjSel]),
+    el('div',{class:'field'},[el('label',{},'Tema'), topicSel]),
+  ]));
+  formCard.appendChild(el('div',{class:'field'},[el('label',{},'O que errei'), textInp]));
+  formCard.appendChild(el('button',{class:'btn btn-primary',onclick: async ()=>{
+    if(!textInp.value.trim()){ toast('Escreva o que você errou.'); return; }
+    if(!subjSel.value){ toast('Cadastre matérias primeiro.'); return; }
+    DB.errorNotes.unshift({id:uid(), date:todayISO(), subjectId:subjSel.value, topicId:topicSel.value, text:textInp.value.trim()});
+    await saveKey('errorNotes'); toast('Anotado no caderno de erros.'); go('questoes');
+  }},'💾 Adicionar ao caderno'));
+  main.appendChild(formCard);
+
+  if(!DB.errorNotes.length){ main.appendChild(el('div',{class:'card'},[el('div',{class:'empty'},[el('div',{class:'big'},'📓'),'Seu caderno de erros está vazio ainda.'])])); return; }
+
+  const bySubject = {};
+  DB.errorNotes.forEach(n=>{ bySubject[n.subjectId]=(bySubject[n.subjectId]||0)+1; });
+  const filterRow = el('div',{style:'display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px;'});
+  const chip=(key,label)=>el('button',{type:'button',onclick:()=>{cadernoErrosFilter=key;go('questoes');},
+    style:`padding:6px 13px;border-radius:99px;font-size:12.5px;font-weight:600;cursor:pointer;border:1.5px solid ${cadernoErrosFilter===key?'var(--forest)':'var(--line)'};background:${cadernoErrosFilter===key?'var(--paper-2)':'#fff'};color:${cadernoErrosFilter===key?'var(--forest)':'var(--ink)'};`
+  },label);
+  filterRow.appendChild(chip('todos','Todos'));
+  DB.subjects.filter(s=>bySubject[s.id]).forEach(s=> filterRow.appendChild(chip(s.id, `${s.name} (${bySubject[s.id]})`)));
+  main.appendChild(filterRow);
+
+  const visible = cadernoErrosFilter==='todos'? DB.errorNotes : DB.errorNotes.filter(n=>n.subjectId===cadernoErrosFilter);
+  const listCard = el('div',{class:'card',style:'padding:8px 0;'});
+  visible.forEach(n=>{
+    const s=DB.subjects.find(x=>x.id===n.subjectId), t=s?s.topics.find(x=>x.id===n.topicId):null;
+    listCard.appendChild(el('div',{style:'padding:12px 18px;border-bottom:1px solid var(--line);'},[
+      el('div',{style:'display:flex;gap:8px;align-items:center;margin-bottom:5px;flex-wrap:wrap;'},[
+        el('span',{style:`width:8px;height:8px;border-radius:50%;background:${s?subjectColor(s):'#ccc'};`}),
+        el('span',{style:'font-weight:700;font-size:13px;'}, s?s.name:'—'),
+        t? el('span',{class:'muted',style:'font-size:12px;'}, '· '+t.name) : null,
+        el('span',{class:'muted',style:'font-size:11.5px;margin-left:auto;'}, fmtDate(n.date)),
+        el('button',{class:'btn-x',onclick:()=>{ if(confirm('Excluir essa anotação?')){ DB.errorNotes=DB.errorNotes.filter(x=>x.id!==n.id); saveKey('errorNotes'); go('questoes'); } }},'✕')
+      ]),
+      el('div',{style:'font-size:13.5px;line-height:1.5;'}, n.text)
+    ]));
+  });
+  main.appendChild(listCard);
+}
 
 function renderQuestoesRegistrar(main){
   const linkCard = el('div',{class:'card',style:'margin-bottom:16px;background:linear-gradient(120deg,#e3edff,#fff);border-color:#c9dcfb;display:flex;align-items:center;gap:14px;flex-wrap:wrap;'});
@@ -2904,7 +2980,9 @@ function renderQuestoesRegistrar(main){
     const s=DB.subjects.find(x=>x.id===sId), t=s.topics.find(x=>x.id===tId);
     t.questions += total; t.correct += correct;
     await saveKey('questionSessions'); await saveKey('subjects');
-    toast('Sessão de questões registrada.'); checkAchievements(); go('questoes');
+    const errCount = total-correct;
+    toast(errCount>0? `Sessão registrada. ${errCount} erro${errCount>1?'s':''} — que tal anotar no 📓 Caderno de Erros?` : 'Sessão de questões registrada.', errCount>0?6500:undefined);
+    checkAchievements(); go('questoes');
   }},'💾 Registrar'));
   main.appendChild(formCard);
 
@@ -5785,22 +5863,23 @@ RENDERERS.perfil = function(main){
   const totalQ = DB.questionSessions.reduce((a,q)=>a+q.total,0);
   const streak = computeStreak();
 
-  const headCard = el('div',{class:'card',style:'margin-bottom:16px;'});
-  headCard.appendChild(el('div',{style:'display:flex;align-items:center;gap:16px;flex-wrap:wrap;'},[
+  const headCard = el('div',{class:'card',style:'margin-bottom:16px;background:linear-gradient(120deg,#fff9f0,#fdeef8);border-color:#f6e2e8;overflow:hidden;position:relative;'});
+  headCard.appendChild(el('div',{style:'position:absolute;top:-30px;right:-30px;width:140px;height:140px;border-radius:50%;background:radial-gradient(circle,rgba(239,79,120,.1),transparent 70%);'}));
+  headCard.appendChild(el('div',{style:'display:flex;align-items:center;gap:18px;flex-wrap:wrap;position:relative;'},[
     DB.profile.photo
-      ? el('img',{src:DB.profile.photo, style:'width:96px;height:96px;border-radius:50%;object-fit:cover;flex-shrink:0;box-shadow:0 4px 14px rgba(91,87,217,.25);'})
-      : el('div',{style:'width:96px;height:96px;border-radius:50%;background:linear-gradient(140deg,var(--forest),var(--gold) 60%,var(--sage));display:flex;align-items:center;justify-content:center;font-size:44px;flex-shrink:0;box-shadow:0 4px 14px rgba(91,87,217,.25);'}, DB.profile.avatarEmoji||'🌸'),
-    el('div',{style:'flex:1;'},[
-      el('div',{style:'font-family:Fraunces,serif;font-size:21px;font-weight:700;'}, userName()||'Sem nome definido'),
-      el('div',{class:'muted',style:'margin-top:2px;'}, DB.profile.targetRole? `Preparando-se para: ${DB.profile.targetRole}` : 'Nenhum objetivo definido ainda'),
-      el('div',{class:'muted',style:'margin-top:2px;font-size:13.5px;'}, [
+      ? el('img',{class:'avatar-zoomable', src:DB.profile.photo, style:'width:104px;height:104px;border-radius:50%;object-fit:cover;flex-shrink:0;border:3px solid #fff;box-shadow:0 6px 20px rgba(91,87,217,.22);', onclick:()=>openPhotoLightbox(DB.profile.photo)})
+      : el('div',{class:'avatar-zoomable', style:'width:104px;height:104px;border-radius:50%;background:linear-gradient(140deg,var(--forest),var(--gold) 60%,var(--sage));display:flex;align-items:center;justify-content:center;font-size:46px;flex-shrink:0;border:3px solid #fff;box-shadow:0 6px 20px rgba(91,87,217,.22);', onclick:()=>go('perfil')}, DB.profile.avatarEmoji||'🌸'),
+    el('div',{style:'flex:1;min-width:180px;'},[
+      el('div',{style:'font-family:Fraunces,serif;font-size:22px;font-weight:700;'}, userName()||'Sem nome definido'),
+      el('div',{class:'muted',style:'margin-top:3px;'}, DB.profile.targetRole? `Preparando-se para: ${DB.profile.targetRole}` : 'Nenhum objetivo definido ainda'),
+      el('div',{class:'muted',style:'margin-top:3px;font-size:13.5px;'}, [
         `No Study Bloom há ${daysSince} dia${daysSince!==1?'s':''} · desde ${DB.profile.joinDate? fmtDate(DB.profile.joinDate) : '—'}`,
         DB.profile.city? ' · 📍 '+DB.profile.city : '',
         DB.profile.targetExamDate? ` · 🎯 faltam ${Math.max(0,daysUntil(DB.profile.targetExamDate))} dias para a prova` : ''
       ].join(''))
     ])
   ]));
-  if(DB.profile.bio) headCard.appendChild(el('div',{style:'margin-top:12px;padding-top:12px;border-top:1px solid var(--line);font-size:14px;font-style:italic;color:var(--ink);'}, '“'+DB.profile.bio+'”'));
+  if(DB.profile.bio) headCard.appendChild(el('div',{style:'margin-top:14px;padding-top:14px;border-top:1px solid rgba(35,33,52,.08);font-size:14px;font-style:italic;color:var(--ink);position:relative;'}, '“'+DB.profile.bio+'”'));
   main.appendChild(headCard);
 
   // quick stats
