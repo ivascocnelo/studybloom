@@ -582,6 +582,7 @@ input,textarea,select{font-family:inherit;}
       <div class="nav-group-label">BEM-ESTAR</div>
       <button class="nav-item" data-tab="respiracao"><span class="nav-icon">🌿</span>Respiração &amp; Pausa</button>
       <button class="nav-item" data-tab="desabafo"><span class="nav-icon">💙</span>Desabafo</button>
+      <button class="nav-item" data-tab="filmes"><span class="nav-icon">🎬</span>Filmes &amp; Séries</button>
     </div>
     <div class="nav-group">
       <div class="nav-group-label">ESPIRITUALIDADE</div>
@@ -702,6 +703,7 @@ let DB = {
   gameScores: {}, // {memory_facil:12, sequence_dificil:7, words_medio:87, ...}
   provasEstagio: [], // {id,lugar,cidade,inscricaoAte,inscrito,edital,dataProva,horaProva,modalidade,teletrabalho,dataFinal,bolsa,colocacao,resultado,link,obs}
   desabafos: [], // {id,date,ts,text,mood}
+  watchlist: [], // {id,title,type,watched,platform,notes}
   videoBlocks: [], // {id,name,color,icon}
   videos: [], // {id,blockId,title,url,notes,watched,addedDate}
   mantras: [],
@@ -720,7 +722,7 @@ let DB = {
   seeded:false
 };
 
-const KEYS = ['subjects','studySessions','questionSessions','goals','concursos','provasEstagio','desabafos','flashcards','books','brainLog','meditationLog','sleepLog','simulados','spotifyAuth','gameScores','videoBlocks','videos','mantras','lectioDraft','lectioHistory','prayerToday','prayerHistory','events','quickNotes','profile','liturgyByDate','gospelCache','gospelFavorites','achievementsSeen','settings','seeded'];
+const KEYS = ['subjects','studySessions','questionSessions','goals','concursos','provasEstagio','desabafos','watchlist','flashcards','books','brainLog','meditationLog','sleepLog','simulados','spotifyAuth','gameScores','videoBlocks','videos','mantras','lectioDraft','lectioHistory','prayerToday','prayerHistory','events','quickNotes','profile','liturgyByDate','gospelCache','gospelFavorites','achievementsSeen','settings','seeded'];
 
 /* ---------------------------------------------------------
    STORAGE LAYER
@@ -5047,6 +5049,97 @@ RENDERERS.desabafo = function(main){
     main.appendChild(histCard);
   }
 };
+
+/* =========================================================
+   FILMES & SÉRIES — lista pessoal do que já viu / quer ver
+   ========================================================= */
+let filmesFilter = 'todos';
+const FILME_TYPES = {filme:['🎬','Filme'], serie:['📺','Série'], livro:['📖','Livro/Filme']};
+RENDERERS.filmes = function(main){
+  main.appendChild(hero('🎬 Filmes & Séries', 'O que você já viu e o que quer ver.',
+    `Sua listinha de entretenimento — porque descansar também é estratégia${userName()?', '+userName():''}.`,
+    [el('button',{class:'btn-hero',onclick:()=>openFilmeForm(null)},'+ Adicionar')]));
+
+  if(!DB.watchlist.length){
+    main.appendChild(el('div',{class:'card'},[el('div',{class:'empty'},[el('div',{class:'big'},'🎬'),'Sua lista está vazia ainda.'])]));
+    return;
+  }
+
+  const total = DB.watchlist.length;
+  const assistidos = DB.watchlist.filter(w=>w.watched).length;
+  const filmes = DB.watchlist.filter(w=>w.type==='filme').length;
+  const series = DB.watchlist.filter(w=>w.type==='serie').length;
+
+  const statsRow = el('div',{class:'grid g4',style:'margin-bottom:16px;'});
+  statsRow.appendChild(statCardPastel2('stat-pink','Total na lista', String(total), 'entre filmes e séries'));
+  statsRow.appendChild(statCardPastel2('stat-mint','Já assistidos', String(assistidos), `${total-assistidos} ainda faltam`));
+  statsRow.appendChild(statCardPastel2('stat-blue','Filmes', String(filmes), 'na lista'));
+  statsRow.appendChild(statCardPastel2('stat-lav','Séries', String(series), 'na lista'));
+  main.appendChild(statsRow);
+
+  const filterRow = el('div',{style:'display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px;'});
+  const chip = (key,label)=> el('button',{type:'button', onclick:()=>{ filmesFilter=key; go('filmes'); },
+    style:`padding:6px 13px;border-radius:99px;font-size:12.5px;font-weight:600;cursor:pointer;
+      border:1.5px solid ${filmesFilter===key?'var(--forest)':'var(--line)'};background:${filmesFilter===key?'var(--paper-2)':'#fff'};color:${filmesFilter===key?'var(--forest)':'var(--ink)'};`
+  }, label);
+  filterRow.appendChild(chip('todos','Todos'));
+  filterRow.appendChild(chip('naovisto','🔲 Quero ver'));
+  filterRow.appendChild(chip('visto','✅ Já vi'));
+  filterRow.appendChild(chip('filme','🎬 Filmes'));
+  filterRow.appendChild(chip('serie','📺 Séries'));
+  main.appendChild(filterRow);
+
+  let visible = DB.watchlist;
+  if(filmesFilter==='naovisto') visible = visible.filter(w=>!w.watched);
+  else if(filmesFilter==='visto') visible = visible.filter(w=>w.watched);
+  else if(filmesFilter==='filme') visible = visible.filter(w=>w.type==='filme');
+  else if(filmesFilter==='serie') visible = visible.filter(w=>w.type==='serie');
+
+  const listCard = el('div',{class:'card',style:'padding:8px 0;'});
+  if(!visible.length){ listCard.appendChild(el('div',{class:'empty'},'Nada aqui com esse filtro.')); }
+  visible.forEach(w=>{
+    const typeMeta = FILME_TYPES[w.type]||FILME_TYPES.filme;
+    listCard.appendChild(el('div',{style:`display:flex;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid var(--line);opacity:${w.watched?'.6':'1'};`},[
+      el('button',{type:'button', title:'Marcar como assistido/não assistido', onclick: async ()=>{ w.watched=!w.watched; await saveKey('watchlist'); go('filmes'); },
+        style:`width:26px;height:26px;border-radius:50%;border:2px solid ${w.watched?'var(--ok)':'var(--line)'};background:${w.watched?'var(--ok)':'#fff'};color:#fff;font-size:14px;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;`
+      }, w.watched?'✓':''),
+      el('div',{style:'flex:1;min-width:0;'},[
+        el('div',{style:`font-weight:600;font-size:14px;${w.watched?'text-decoration:line-through;':''}`}, w.title),
+        el('div',{class:'muted',style:'font-size:11.5px;margin-top:1px;'}, [typeMeta[0]+' '+typeMeta[1], w.platform?' · '+w.platform:'', w.notes?' · '+w.notes:''].join(''))
+      ]),
+      el('button',{class:'btn btn-ghost btn-sm',onclick:()=>openFilmeForm(w)},'✎'),
+      el('button',{class:'btn-x',onclick:()=>{ if(confirm('Remover da lista?')){ DB.watchlist=DB.watchlist.filter(x=>x.id!==w.id); saveKey('watchlist'); go('filmes'); } }},'✕')
+    ]));
+  });
+  main.appendChild(listCard);
+};
+
+function openFilmeForm(w){
+  const isNew=!w;
+  const f = isNew? {title:'',type:'filme',watched:false,platform:'',notes:''} : {...w};
+  const title = el('input',{value:f.title, placeholder:'Nome do filme/série'});
+  const typeSel = el('select',{}); Object.entries(FILME_TYPES).forEach(([k,v])=>typeSel.appendChild(el('option',{value:k,selected:f.type===k?'selected':undefined}, v[0]+' '+v[1])));
+  const platform = el('input',{value:f.platform, placeholder:'Ex: Netflix, Prime, Disney+ (opcional)'});
+  const notes = el('input',{value:f.notes, placeholder:'Alguma observação (opcional)'});
+  const watchedChk = el('input',{type:'checkbox'}); watchedChk.checked=!!f.watched;
+
+  const body = el('div',{},[
+    el('div',{class:'field'},[el('label',{},'Título'), title]),
+    el('div',{class:'row'},[el('div',{class:'field'},[el('label',{},'Tipo'), typeSel]),el('div',{class:'field'},[el('label',{},'Plataforma'), platform])]),
+    el('div',{class:'field'},[el('label',{},'Observação'), notes]),
+    el('div',{class:'field'},[el('label',{style:'display:flex;align-items:center;gap:6px;'},[watchedChk,'Já assisti'])]),
+  ]);
+  const foot = el('div',{style:'display:flex;gap:8px;'},[
+    el('button',{class:'btn btn-ghost',onclick:closeModal},'✕ Sair'),
+    el('button',{class:'btn btn-primary',onclick: async ()=>{
+      if(!title.value.trim()){ toast('Digite o título.'); return; }
+      const data = {title:title.value.trim(), type:typeSel.value, platform:platform.value.trim(), notes:notes.value.trim(), watched:watchedChk.checked};
+      if(isNew) DB.watchlist.push({id:uid(), ...data}); else Object.assign(w, data);
+      await saveKey('watchlist'); closeModal(); go('filmes'); toast('Salvo!');
+    }},'💾 Salvar')
+  ]);
+  openModal(isNew?'Adicionar filme/série':'Editar', body, foot);
+}
 
 RENDERERS.oracao = function(main){
   const bannerH = ORACAO_BANNER_SIZES[DB.settings.oracaoBannerSize||'fina'];
