@@ -6366,7 +6366,8 @@ const BINAURAL_TYPES = {
   relax10: {base:200, beat:10},  // onda alfa — associada a relaxamento alerta
 };
 let musicAudioCtx = null, musicNoiseSource = null, musicGainNode = null, musicFilterNode = null, musicPlayingType = null;
-let musicOscL = null, musicOscR = null, musicLFO = null, musicLFOGain = null, musicLFO2 = null, musicLFOGain2 = null;
+let musicOscL = null, musicOscR = null, musicLFO = null, musicLFOGain = null;
+let musicDropletActive = false, musicDropletTimer = null, musicWaveActive = false, musicWaveTimer = null;
 function ensureAudioCtx(){
   if(!musicAudioCtx) musicAudioCtx = new (window.AudioContext||window.webkitAudioContext)();
   return musicAudioCtx;
@@ -6376,7 +6377,8 @@ function stopAmbientSound(){
   if(musicOscL){ try{ musicOscL.stop(); }catch(e){} musicOscL=null; }
   if(musicOscR){ try{ musicOscR.stop(); }catch(e){} musicOscR=null; }
   if(musicLFO){ try{ musicLFO.stop(); }catch(e){} musicLFO=null; }
-  if(musicLFO2){ try{ musicLFO2.stop(); }catch(e){} musicLFO2=null; }
+  musicDropletActive = false; if(musicDropletTimer){ clearTimeout(musicDropletTimer); musicDropletTimer=null; }
+  musicWaveActive = false; if(musicWaveTimer){ clearTimeout(musicWaveTimer); musicWaveTimer=null; }
   musicPlayingType = null;
   document.getElementById('musicFab').classList.remove('playing');
   renderMusicSoundGrid();
@@ -6400,76 +6402,113 @@ function playBinaural(type){
   renderMusicSoundGrid();
 }
 function ambientBaseMult(type){
-  return {rain:0.42, waves:0.30, river:0.38}[type] ?? 0.6;
+  return {rain:0.16, waves:0.34, river:0.12}[type] ?? 0.6;
 }
-function ambientLfoMult(type){
-  return {rain:0.1, waves:0.24, river:0.06}[type] ?? 0;
+// toca uma "gotinha" isolada: um estalo curtíssimo, filtrado, com decaimento — é isso que faz soar como água de verdade, não estática
+function playDroplet(ctx, dest, opts){
+  const dur = opts.dur||0.05;
+  const n = Math.max(1,Math.floor(ctx.sampleRate*dur));
+  const buf = ctx.createBuffer(1,n,ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for(let i=0;i<n;i++){ const decay = Math.pow(1-i/n, 2.2); data[i] = (Math.random()*2-1)*decay; }
+  const src = ctx.createBufferSource(); src.buffer=buf;
+  const bp = ctx.createBiquadFilter(); bp.type='bandpass';
+  bp.frequency.value = opts.freqMin + Math.random()*(opts.freqMax-opts.freqMin);
+  bp.Q.value = opts.q||4;
+  const g = ctx.createGain(); g.gain.value = opts.volume*(0.45+Math.random()*0.65);
+  const pan = ctx.createStereoPanner(); pan.pan.value = (Math.random()*2-1)*0.7;
+  src.connect(bp).connect(g).connect(pan).connect(dest);
+  src.start();
+}
+function scheduleDroplets(ctx, dest, opts){
+  musicDropletActive = true;
+  function tick(){
+    if(!musicDropletActive) return;
+    playDroplet(ctx, dest, opts);
+    if(Math.random()<opts.doubleChance) setTimeout(()=>{ if(musicDropletActive) playDroplet(ctx, dest, opts); }, 15+Math.random()*20);
+    const gap = (opts.minGap + Math.random()*(opts.maxGap-opts.minGap))*1000;
+    musicDropletTimer = setTimeout(tick, gap);
+  }
+  tick();
+}
+function scheduleWaveEnvelope(ctx, gainNode, baseVol){
+  musicWaveActive = true;
+  function cycle(){
+    if(!musicWaveActive) return;
+    const now = ctx.currentTime;
+    const peak = baseVol*2.1, trough = Math.max(baseVol*0.18,0.002);
+    gainNode.gain.cancelScheduledValues(now);
+    gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+    gainNode.gain.linearRampToValueAtTime(peak, now+2.4); // onda sobe/quebra
+    gainNode.gain.exponentialRampToValueAtTime(trough, now+7.8); // espuma recuando devagar
+    const cycleMs = (7.8+Math.random()*1.6)*1000;
+    musicWaveTimer = setTimeout(cycle, cycleMs);
+  }
+  cycle();
 }
 function playAmbientSound(type){
   if(BINAURAL_TYPES[type]){ playBinaural(type); return; }
   stopAmbientSound();
   const ctx = ensureAudioCtx();
-  const bufferSize = 2*ctx.sampleRate;
-  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-  const output = buffer.getChannelData(0);
   const vol = (Number(document.getElementById('musicVolume').value)||35)/100;
-  if(type==='white' || type==='rain' || type==='river'){
+  musicGainNode = ctx.createGain();
+  musicGainNode.gain.value = vol * ambientBaseMult(type);
+  musicGainNode.connect(ctx.destination);
+
+  if(type==='rain' || type==='river'){
+    // camada de fundo bem leve (só uma "neblina" de som, quase inaudível sozinha)
+    const bufferSize = 2*ctx.sampleRate;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const output = buffer.getChannelData(0);
     for(let i=0;i<bufferSize;i++) output[i] = Math.random()*2-1;
-  } else if(type==='pink'){
-    let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
-    for(let i=0;i<bufferSize;i++){
-      const white = Math.random()*2-1;
-      b0=0.99886*b0+white*0.0555179; b1=0.99332*b1+white*0.0750759; b2=0.96900*b2+white*0.1538520;
-      b3=0.86650*b3+white*0.3104856; b4=0.55000*b4+white*0.5329522; b5=-0.7616*b5-white*0.0168980;
-      output[i]=(b0+b1+b2+b3+b4+b5+b6+white*0.5362)*0.11; b6=white*0.115926;
+    musicNoiseSource = ctx.createBufferSource();
+    musicNoiseSource.buffer = buffer; musicNoiseSource.loop = true;
+    musicFilterNode = ctx.createBiquadFilter();
+    musicFilterNode.type='bandpass'; musicFilterNode.frequency.value = type==='rain'?2200:2400; musicFilterNode.Q.value=0.5;
+    musicNoiseSource.connect(musicFilterNode).connect(musicGainNode);
+    musicNoiseSource.start(0);
+    // as gotinhas de verdade — é isso que dá a textura de chuva/água, não o chiado
+    if(type==='rain'){
+      scheduleDroplets(ctx, musicGainNode, {freqMin:1400, freqMax:4800, dur:0.05, minGap:0.025, maxGap:0.12, doubleChance:0.18, volume:vol*0.9, q:3.5});
+    } else {
+      scheduleDroplets(ctx, musicGainNode, {freqMin:1800, freqMax:3600, dur:0.035, minGap:0.012, maxGap:0.05, doubleChance:0.35, volume:vol*0.6, q:5});
     }
-  } else { // brown, waves
+  } else if(type==='waves'){
+    // mar: ruído marrom (grave, "cheio") + envelope de onda quebrando/recuando (não é uma senoide suave, é assimétrico)
+    const bufferSize = 2*ctx.sampleRate;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const output = buffer.getChannelData(0);
     let last=0;
     for(let i=0;i<bufferSize;i++){ const white=Math.random()*2-1; last=(last+0.02*white)/1.02; output[i]=last*3.5; }
-  }
-  musicNoiseSource = ctx.createBufferSource();
-  musicNoiseSource.buffer = buffer; musicNoiseSource.loop = true;
-  musicGainNode = ctx.createGain();
-  musicGainNode.gain.value = vol * 0.6;
-
-  if(type==='rain'){
-    // chuva: "chiado" médio-agudo (não é só ruído branco cru) + leve variação de intensidade, tipo rajadas
-    const hp = ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=550;
-    musicFilterNode = ctx.createBiquadFilter(); musicFilterNode.type='lowpass'; musicFilterNode.frequency.value=3200; musicFilterNode.Q.value=0.4;
-    musicNoiseSource.connect(hp).connect(musicFilterNode).connect(musicGainNode).connect(ctx.destination);
-    musicGainNode.gain.value = vol*ambientBaseMult('rain');
-    musicLFO = ctx.createOscillator(); musicLFO.frequency.value=0.13; musicLFO.type='sine';
-    musicLFOGain = ctx.createGain(); musicLFOGain.gain.value = vol*ambientLfoMult('rain');
-    musicLFO.connect(musicLFOGain).connect(musicGainNode.gain);
-    musicLFO.start();
-    // uma segunda camada bem sutil e mais grave, pra dar corpo (tipo chuva batendo em telhado ao fundo)
-    musicLFO2 = ctx.createOscillator(); musicLFO2.frequency.value=0.05; musicLFO2.type='sine';
-    musicLFOGain2 = ctx.createGain(); musicLFOGain2.gain.value = vol*0.05;
-    musicLFO2.connect(musicLFOGain2).connect(musicFilterNode.frequency);
-    musicLFO2.start();
-  } else if(type==='waves'){
-    // mar: ruído marrom (grave, "cheio") + balanço lento simulando ondas quebrando e recuando
-    musicFilterNode = ctx.createBiquadFilter(); musicFilterNode.type='lowpass'; musicFilterNode.frequency.value=650;
-    musicNoiseSource.connect(musicFilterNode).connect(musicGainNode).connect(ctx.destination);
-    musicGainNode.gain.value = vol*ambientBaseMult('waves');
-    musicLFO = ctx.createOscillator(); musicLFO.frequency.value=0.11; musicLFO.type='sine'; // ~9s por ciclo de onda
-    musicLFOGain = ctx.createGain(); musicLFOGain.gain.value = vol*ambientLfoMult('waves');
-    musicLFO.connect(musicLFOGain).connect(musicGainNode.gain);
-    musicLFO.start();
-  } else if(type==='river'){
-    // água corrente: textura clara e constante, sem balanço (fluxo contínuo, tipo riacho)
-    const hp = ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=900;
-    musicFilterNode = ctx.createBiquadFilter(); musicFilterNode.type='bandpass'; musicFilterNode.frequency.value=2100; musicFilterNode.Q.value=0.55;
-    musicNoiseSource.connect(hp).connect(musicFilterNode).connect(musicGainNode).connect(ctx.destination);
-    musicGainNode.gain.value = vol*ambientBaseMult('river');
-    musicLFO = ctx.createOscillator(); musicLFO.frequency.value=0.6; musicLFO.type='sine'; // um tremor rápido e sutil, tipo borbulhar
-    musicLFOGain = ctx.createGain(); musicLFOGain.gain.value = vol*ambientLfoMult('river');
-    musicLFO.connect(musicLFOGain).connect(musicGainNode.gain);
-    musicLFO.start();
+    musicNoiseSource = ctx.createBufferSource();
+    musicNoiseSource.buffer = buffer; musicNoiseSource.loop = true;
+    musicFilterNode = ctx.createBiquadFilter(); musicFilterNode.type='lowpass'; musicFilterNode.frequency.value=600;
+    musicNoiseSource.connect(musicFilterNode).connect(musicGainNode);
+    musicNoiseSource.start(0);
+    scheduleWaveEnvelope(ctx, musicGainNode, vol*ambientBaseMult('waves'));
   } else {
-    musicNoiseSource.connect(musicGainNode).connect(ctx.destination);
+    const bufferSize = 2*ctx.sampleRate;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const output = buffer.getChannelData(0);
+    if(type==='white'){
+      for(let i=0;i<bufferSize;i++) output[i] = Math.random()*2-1;
+    } else if(type==='pink'){
+      let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+      for(let i=0;i<bufferSize;i++){
+        const white = Math.random()*2-1;
+        b0=0.99886*b0+white*0.0555179; b1=0.99332*b1+white*0.0750759; b2=0.96900*b2+white*0.1538520;
+        b3=0.86650*b3+white*0.3104856; b4=0.55000*b4+white*0.5329522; b5=-0.7616*b5-white*0.0168980;
+        output[i]=(b0+b1+b2+b3+b4+b5+b6+white*0.5362)*0.11; b6=white*0.115926;
+      }
+    } else { // brown
+      let last=0;
+      for(let i=0;i<bufferSize;i++){ const white=Math.random()*2-1; last=(last+0.02*white)/1.02; output[i]=last*3.5; }
+    }
+    musicNoiseSource = ctx.createBufferSource();
+    musicNoiseSource.buffer = buffer; musicNoiseSource.loop = true;
+    musicNoiseSource.connect(musicGainNode);
+    musicNoiseSource.start(0);
   }
-  musicNoiseSource.start(0);
   musicPlayingType = type;
   document.getElementById('musicFab').classList.add('playing');
   renderMusicSoundGrid();
@@ -6741,8 +6780,7 @@ function toggleMusicPanel(show){
     if(musicGainNode){
       const mult = BINAURAL_TYPES[musicPlayingType]? 0.18 : ambientBaseMult(musicPlayingType);
       const vol = (Number(e.target.value)||0)/100;
-      musicGainNode.gain.value = vol*mult;
-      if(musicLFOGain) musicLFOGain.gain.value = vol*ambientLfoMult(musicPlayingType);
+      if(musicPlayingType!=='waves') musicGainNode.gain.value = vol*mult;
     }
   });
   document.querySelectorAll('#musicTabs button').forEach(btn=>{
