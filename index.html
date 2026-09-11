@@ -178,6 +178,10 @@ input,textarea,select{font-family:inherit;}
 /* Page header (replaces old colorful hero banner) */
 .page-header{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:18px;}
 .page-date{color:var(--muted);font-size:14.5px;margin-bottom:6px;}
+.datetime-pill{display:inline-flex;align-items:center;gap:9px;background:#fff;border:1px solid var(--line);border-radius:99px;padding:7px 18px 7px 14px;box-shadow:0 3px 10px rgba(35,33,52,.06);margin-bottom:8px;}
+.datetime-pill .dt-date{color:var(--muted);font-size:13.5px;font-weight:600;}
+.datetime-pill .dt-sep{color:var(--line);font-size:12px;}
+.datetime-pill .dt-clock{font-family:'Fraunces',serif;font-weight:700;font-size:15.5px;color:var(--forest);letter-spacing:.02em;min-width:60px;font-variant-numeric:tabular-nums;}
 .page-eyebrow{font-family:'Fraunces',serif;font-size:32px;font-weight:700;color:var(--ink);line-height:1.2;}
 .page-subtle{color:var(--muted);font-size:15px;margin-top:5px;max-width:520px;line-height:1.5;}
 .page-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
@@ -1490,11 +1494,13 @@ function updateSidebarGreeting(){
     const streak = computeStreak();
     let subs;
     if(todayMin===0 && hour>=19){
-      subs = ['Ainda dá tempo de estudar um pouquinho hoje 👀', 'Bora garantir a sequência antes que o dia acabe?'];
+      subs = ['O dia já era e nem começou a estudar. Sério mesmo?', 'Ainda dá tempo — bem pouco, mas dá.', 'Zero estudo hoje. Anotado, com julgamento.'];
+    } else if(todayMin===0 && hour>=13){
+      subs = ['Metade do dia foi, os estudos não. Bora resolver isso?', 'O feed já foi rolado. Falta só o material agora.', 'Cadê você? Não, cadê os estudos?'];
     } else if(streak>=3){
-      subs = [`${streak} dias seguidos — não vai parar agora! 🔥`, `Sequência de ${streak} dias firme e forte.`];
+      subs = [`${streak} dias seguidos — não vai estragar agora! 🔥`, `Sequência de ${streak} dias firme. Não some.`, `${streak} dias de disciplina. Mantém esse nível.`];
     } else {
-      subs = ['Seu centro de comando começa aqui.', 'Vamos com tudo hoje?', 'Um passo de cada vez, tá indo bem.'];
+      subs = ['Seu centro de comando começa aqui.', 'Vamos com tudo hoje, sem desculpa.', 'Um passo de cada vez — mas dá esse passo.'];
     }
     s.textContent = pickRandom(subs);
   }
@@ -1941,6 +1947,8 @@ const TOUGH_LOVE_MILD = [
   'Metade do dia foi embora e os estudos ainda não começaram. Dá tempo de reverter.',
   'Passando aqui só pra lembrar: o dia começou, o cronômetro não.',
   'O café já foi tomado, o feed já foi rolado. E os estudos?',
+  'Meio-dia batendo e você ainda "vai começar daqui a pouco". Esse "pouco" tá rendendo, hein.',
+  'O relógio virou meio-dia sem pedir sua permissão. Os estudos também não vão pedir.',
 ];
 const TOUGH_LOVE_MEDIUM = [
   'Já é tarde e o cronômetro continua parado. Isso não vai se estudar sozinho.',
@@ -1948,6 +1956,9 @@ const TOUGH_LOVE_MEDIUM = [
   'Tarde chegando e zero progresso. Seu "eu" de amanhã vai cobrar isso.',
   'Ainda dá tempo, mas o relógio não tá do seu lado hoje.',
   'Enquanto você enrola, o edital continua exatamente do mesmo tamanho.',
+  'A tarde tá indo embora e o material continua fechado. Ele não abre sozinho, sabia?',
+  'Já passou da hora de "depois eu vejo". O depois virou agora faz tempo.',
+  'Seu concorrente não parou pra pensar se "tava com vontade". Só estudou.',
 ];
 const TOUGH_LOVE_QUOTES = [
   'Sua meta de hoje tá esperando. Ela é mais paciente que eu, mas nem tanto.',
@@ -1970,6 +1981,13 @@ const TOUGH_LOVE_QUOTES = [
   'Ninguém vai bater na sua porta te lembrando disso. Sou eu mesmo, o app. E tô batendo.',
   'A aprovação não pergunta se você "tava com preguiça hoje".',
   'Se estudar sozinha fosse fácil, todo mundo já tinha passado.',
+  'Ah, você "não tá inspirada hoje"? Que ótimo. A prova também não vai estar interessada nisso.',
+  'Daqui a uns meses você vai se arrepender de hoje ou vai agradecer por hoje. A escolha é literalmente agora.',
+  'Continua adiando. Só não reclama depois que o resultado saiu igualzinho ao esforço que você deu: quase nada.',
+  'Sabe aquela sensação de "amanhã eu recupero"? Ela não existe. Só existe o hoje que passou em branco.',
+  'Tô só uma notificação chata num app. Mas às vezes é disso que você precisa: alguém pra falar o óbvio.',
+  'Seu futuro cargo tá sendo decidido nos dias chatos, não nos dias empolgantes. Hoje é um deles.',
+  'Se fosse fácil, não precisaria de concurso pra filtrar quem é capaz. E você tá deixando passar mais um dia de filtro.',
 ];
 function toughLoveQuoteFor(tier){
   if(tier==='mild') return pickRandom(TOUGH_LOVE_MILD);
@@ -2011,45 +2029,45 @@ function buildAssistantMessage(){
   if(todayMin===0){
     if(hour<14){
       main = pickRandom([
-        `Ainda não vi nada de estudo hoje... bora começar? Só 25 minutinhos já quebram o gelo.`,
-        `Zero minutos até agora. O dia ainda tá começando, mas não deixa pra última hora 👀`,
-        `Cadê os estudos de hoje? Ainda dá tempo de mandar bem.`,
-        `Tá esperando o quê pra começar? O cronômetro tá logo ali.`,
+        `Zero minutos até agora, e olha que o dia já tá adiantado. Vamos fingir que isso é "estratégia" e não procrastinação?`,
+        `Ainda não abriu nada hoje. O edital continua lá, esperando pacientemente — ele tem mais paciência que eu.`,
+        `Cadê os estudos? Já rolou feed, já viu história dos outros, só falta ver o próprio material.`,
+        `O dia começou e você ainda não. Combina com o "amanhã eu começo" de ontem?`,
       ]);
     } else if(hour<19){
       main = pickRandom([
-        `Já é tarde e ainda não te vi estudando hoje... bora, nem que seja pouquinho?`,
-        `O dia tá passando e o cronômetro nem rodou uma vez ainda. Bora lá!`,
-        `Sem estudo até agora? Se puder, entra ali e faz uns 20 minutinhos, vale muito.`,
-        `Psiu${nmSuffix}, o relógio não para. Que tal um empurrãozinho agora?`,
+        `Já é tarde e o cronômetro nem foi tocado. "Depois eu estudo" tá virando seu mantra oficial.`,
+        `O dia tá indo embora e os estudos, junto. Alguém aí certamente já terminou um capítulo hoje.`,
+        `Zero estudo até agora — se fosse questão de prova, já tinha zerado a redação também.`,
+        `Psiu${nmSuffix}, o relógio não tá do seu lado hoje. Nem um pouquinho.`,
       ]);
     } else if(streak>0 && yestMin>0){
       main = pickRandom([
-        `Você tem uma sequência de <b>${streak} dias</b> e ela corre risco de quebrar hoje. Ainda dá tempo — bora?`,
-        `Já é noite e sua sequência de ${streak} dias tá pendurada por um fio. Não deixa ela morrer aqui!`,
-        `Ei${nmSuffix}, faltam poucas horas pro dia acabar e a sequência de ${streak} dias ainda não foi garantida hoje.`,
+        `Você tem <b>${streak} dias</b> de sequência e tá prestes a jogar isso no lixo por pura enrolação. Ainda dá tempo, sabia?`,
+        `Já é noite e sua sequência de ${streak} dias tá literalmente pendurada por um fio. Vai deixar acabar assim, sem nem lutar?`,
+        `Ei${nmSuffix}, faltam poucas horas e ${streak} dias de esforço correm risco por causa de hoje. Pense bem.`,
       ]);
     } else {
       main = pickRandom([
-        `Já é noite e o dia passou sem estudar. Amanhã sem desculpa, hein? 😤`,
-        `Tá quase acabando o dia e zero estudo ainda. Vou fingir que não vi... mas amanhã eu cobro.`,
-        `O dia foi embora e os estudos ficaram pra trás. Bora recomeçar amanhã com tudo?`,
+        `Zero estudo o dia inteiro. Vou anotar aqui, sem julgamento (mentira, com bastante julgamento).`,
+        `O dia foi embora e você junto com ele. Amanhã eu não vou deixar barato, só um aviso.`,
+        `Dia encerrado, estudos zerados. Sua concorrência agradece o dia de folga que você deu de presente.`,
       ]);
     }
   } else if(todayMin < goal){
     const falta = minToHM(goal-todayMin);
     main = pickRandom([
-      `Já foram <b>${minToHM(todayMin)}</b> de uma meta de ${minToHM(goal)}. Falta só ${falta} — não desiste agora!`,
-      `Tá indo bem, já estudou <b>${minToHM(todayMin)}</b> hoje. Mais um empurrãozinho de ${falta} e a meta é sua.`,
-      `Olha só, <b>${minToHM(todayMin)}</b> no bolso! Faltam ${falta} pra fechar o dia com chave de ouro.`,
-      `${minToHM(todayMin)} estudados, faltam ${falta}. Vai que é sua!`,
+      `<b>${minToHM(todayMin)}</b> de ${minToHM(goal)}. Faltam ${falta} — não vai parar bem na hora que tá quase lá, né?`,
+      `Já rendeu <b>${minToHM(todayMin)}</b>. Faltam só ${falta}, e olha que fácil seria terminar isso agora em vez de decidir "depois".`,
+      `<b>${minToHM(todayMin)}</b> no bolso, ${falta} faltando. Fechar ou vai deixar pela metade de novo?`,
+      `${minToHM(todayMin)} estudados. Faltam ${falta} — isso é praticamente nada perto do que você já fez.`,
     ]);
   } else {
     main = pickRandom([
-      `Meta de estudo do dia batida — <b>${minToHM(todayMin)}</b> registrados! Você é gente boa demais${nmSuffix} 🎉`,
-      `Aeee, meta do dia concluída com <b>${minToHM(todayMin)}</b>! Pode descansar com a consciência tranquila.`,
-      `Bateu a meta com <b>${minToHM(todayMin)}</b>! Tá voando 🚀 bora manter esse ritmo amanhã.`,
-      `Meta batida, <b>${minToHM(todayMin)}</b> na conta! Orgulho de você.`,
+      `Meta batida — <b>${minToHM(todayMin)}</b> registrados! Viu como não doeu tanto assim?`,
+      `Aeee, meta do dia concluída com <b>${minToHM(todayMin)}</b>! Guarda esse orgulho, você mereceu.`,
+      `Bateu a meta com <b>${minToHM(todayMin)}</b>! Hoje eu não tenho nada pra reclamar (raro, aproveita).`,
+      `Meta batida, <b>${minToHM(todayMin)}</b> na conta! Repete isso amanhã que a gente conversa de novo.`,
     ]);
   }
 
@@ -2186,9 +2204,11 @@ RENDERERS.dashboard = function(main){
 
   main.appendChild(el('div',{class:'page-header'},[
     el('div',{},[
-      el('div',{style:'display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;'},[
-        el('div',{class:'page-date'}, capitalize(new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'}))),
-        el('div',{id:'liveClock',style:'font-family:Fraunces,serif;font-weight:700;font-size:15px;color:var(--forest);'},'')
+      el('div',{class:'datetime-pill'},[
+        el('span',{style:'font-size:14px;'},'📅'),
+        el('span',{class:'dt-date'}, capitalize(new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'}))),
+        el('span',{class:'dt-sep'},'•'),
+        el('span',{id:'liveClock', class:'dt-clock'},'')
       ]),
       el('div',{class:'page-eyebrow'}, `Como você está hoje${userName()?', '+userName():''}? ✨`)
     ]),
