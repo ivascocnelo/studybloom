@@ -552,6 +552,7 @@ input,textarea,select{font-family:inherit;}
       <div class="sg-sub" id="sgSub">Seu centro de comando começa aqui.</div>
     </div>
     <div id="storageBadge" style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);padding:0 10px 14px;font-weight:600;"></div>
+    <div id="sidebarLogoutRow" style="padding:0 10px 14px;"></div>
 
     <div class="nav-group">
       <div class="nav-group-label">VOCÊ</div>
@@ -1453,6 +1454,18 @@ function updateSidebarGreeting(){
     const [icon,label] = map[storageMode]||map.memory;
     badge.innerHTML=''; badge.appendChild(el('span',{},icon)); badge.appendChild(el('span',{},label));
     badge.style.color = storageMode==='memory'? 'var(--bad)' : 'var(--muted)';
+  }
+  const logoutRow = document.getElementById('sidebarLogoutRow');
+  if(logoutRow){
+    logoutRow.innerHTML='';
+    if(storageMode==='supabase' || storageMode==='firebase'){
+      logoutRow.appendChild(el('button',{class:'btn btn-ghost btn-sm',style:'width:100%;',onclick: async ()=>{
+        if(!confirm('Sair da conta nesse aparelho? Seus dados continuam salvos na nuvem — só não vão aparecer aqui até você entrar de novo.')) return;
+        if(storageMode==='supabase') await spClient.auth.signOut();
+        else await fbAuth.signOut();
+        location.reload();
+      }},'🚪 Sair da conta'));
+    }
   }
   const mark = document.getElementById('brandMark');
   if(mark){
