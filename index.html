@@ -182,6 +182,17 @@ input,textarea,select{font-family:inherit;}
 .datetime-pill .dt-date{color:var(--muted);font-size:13.5px;font-weight:600;}
 .datetime-pill .dt-sep{color:var(--line);font-size:12px;}
 .datetime-pill .dt-clock{font-family:'Fraunces',serif;font-weight:700;font-size:15.5px;color:var(--forest);letter-spacing:.02em;min-width:60px;font-variant-numeric:tabular-nums;}
+#cornerNotifications{position:fixed;top:20px;right:20px;z-index:850;display:flex;flex-direction:column;gap:10px;max-width:340px;width:calc(100% - 40px);}
+.corner-notif{background:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 14px 36px rgba(35,33,52,.2);display:flex;gap:12px;align-items:flex-start;animation:slideInRight .25s ease;border-left:4px solid var(--forest);cursor:default;}
+.corner-notif.leaving{animation:slideOutRight .22s ease forwards;}
+.corner-notif .cn-icon{font-size:22px;flex-shrink:0;line-height:1;}
+.corner-notif .cn-title{font-weight:700;font-size:13.5px;margin-bottom:2px;line-height:1.3;}
+.corner-notif .cn-body{color:var(--muted);font-size:12.5px;line-height:1.45;}
+.corner-notif .cn-close{background:none;border:none;cursor:pointer;color:var(--muted);font-size:13px;padding:2px;flex-shrink:0;}
+.corner-notif .cn-close:hover{color:var(--ink);}
+@keyframes slideInRight{from{transform:translateX(36px);opacity:0;}to{transform:translateX(0);opacity:1;}}
+@keyframes slideOutRight{to{transform:translateX(36px);opacity:0;}}
+@media(max-width:600px){ #cornerNotifications{top:12px;right:12px;left:12px;max-width:none;} }
 .page-eyebrow{font-family:'Fraunces',serif;font-size:32px;font-weight:700;color:var(--ink);line-height:1.2;}
 .page-subtle{color:var(--muted);font-size:15px;margin-top:5px;max-width:520px;line-height:1.5;}
 .page-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
@@ -669,6 +680,7 @@ input,textarea,select{font-family:inherit;}
 </div>
 
 <div class="toast" id="toast"></div>
+<div id="cornerNotifications"></div>
 <div class="chart-tip-global" id="globalChartTip"></div>
 <div id="modalRoot"></div>
 <div id="lockScreen" style="display:none;"></div>
@@ -755,7 +767,7 @@ let DB = {
   gospelCache: {}, // {'YYYY-MM-DD': {reference,bookName,verses}} — texto vem do Gutenberg (Almeida 1911, domínio público)
   gospelFavorites: [], // ['YYYY-MM-DD', ...]
   achievementsSeen: [],
-  settings: {morningReminder:'', morningReminderOn:false, userName:'', appLock:{enabled:false, pinHash:'', pinLength:0, hint:''}, toughLoveMode:true, bgTheme:'floral', customBgImage:'', oracaoBannerTheme:'padrao', oracaoBannerCustom:'', oracaoBannerSize:'fina', browserNotifications:false, tourShown:false, lastBackupExport:'', lastBackupReminderShown:''},
+  settings: {morningReminder:'', morningReminderOn:false, userName:'', appLock:{enabled:false, pinHash:'', pinLength:0, hint:''}, toughLoveMode:true, bgTheme:'floral', customBgImage:'', oracaoBannerTheme:'padrao', oracaoBannerCustom:'', oracaoBannerSize:'fina', browserNotifications:false, tourShown:false, lastBackupExport:'', lastBackupReminderShown:'', lastExamNotifDate:''},
   seeded:false
 };
 
@@ -1139,6 +1151,7 @@ async function loadAll(){
   if(DB.settings.tourShown===undefined) DB.settings.tourShown = false;
   if(DB.settings.lastBackupExport===undefined) DB.settings.lastBackupExport = '';
   if(DB.settings.lastBackupReminderShown===undefined) DB.settings.lastBackupReminderShown = '';
+  if(DB.settings.lastExamNotifDate===undefined) DB.settings.lastExamNotifDate = '';
   if(DB.goals.minSleepHours===undefined) DB.goals.minSleepHours = 7;
   if(!DB.profile) DB.profile={email:'',targetRole:'',avatarEmoji:'🌸',joinDate:''};
   if(!DB.profile.joinDate){ DB.profile.joinDate = todayISO(); await saveKey('profile'); }
@@ -1227,6 +1240,25 @@ async function enableBrowserNotifications(){
   if(perm==='granted'){ DB.settings.browserNotifications=true; await saveKey('settings'); toast('Notificações ativadas! 🔔'); return true; }
   toast('Permissão não concedida — as notificações continuam só dentro do app.');
   return false;
+}
+function notifyCorner(icon, title, body, opts){
+  opts = opts || {};
+  const container = document.getElementById('cornerNotifications');
+  if(!container) return;
+  const card = el('div',{class:'corner-notif', style: opts.accentColor? `border-left-color:${opts.accentColor};` : ''},[
+    el('span',{class:'cn-icon'}, icon),
+    el('div',{style:'flex:1;min-width:0;'},[
+      el('div',{class:'cn-title'}, title),
+      body? el('div',{class:'cn-body'}, body) : null
+    ]),
+    el('button',{class:'cn-close', onclick:()=>removeNotif()},'✕')
+  ]);
+  container.appendChild(card);
+  function removeNotif(){ card.classList.add('leaving'); setTimeout(()=>card.remove(), 220); }
+  setTimeout(removeNotif, opts.duration||7500);
+  if(DB.settings.browserNotifications && typeof Notification!=='undefined' && Notification.permission==='granted'){
+    try{ new Notification(title, {body: body||''}); }catch(e){}
+  }
 }
 function toast(msg, duration){
   const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
@@ -5866,7 +5898,7 @@ function getAchievements(){
 function checkAchievements(){
   const list = getAchievements().filter(a=>a.done).map(a=>a.label);
   const newOnes = list.filter(l=>!DB.achievementsSeen.includes(l));
-  if(newOnes.length){ DB.achievementsSeen = list; saveKey('achievementsSeen'); toast('🏆 Nova conquista: '+newOnes[0]); }
+  if(newOnes.length){ DB.achievementsSeen = list; saveKey('achievementsSeen'); notifyCorner('🏆','Nova conquista desbloqueada!', newOnes[0], {accentColor:'var(--gold)', duration:8500}); }
 }
 
 /* =========================================================
@@ -6710,6 +6742,31 @@ function toggleMusicPanel(show){
         saveKey('settings');
       }, 2500);
     }
+  })();
+
+  // notificação de provas/inscrições próximas (concursos + provas de estágio)
+  (function checkUpcomingExams(){
+    if(DB.settings.lastExamNotifDate === todayISO()) return;
+    const today = todayISO();
+    const inDays = (dateStr)=> dateStr? Math.round((new Date(dateStr+'T00:00:00')-new Date(today+'T00:00:00'))/86400000) : null;
+    const alerts = [];
+    (DB.provasEstagio||[]).forEach(p=>{
+      const dp = inDays(p.dataProva);
+      if(dp!==null && dp>=0 && dp<=5) alerts.push({icon:'✍️', title: dp===0?'Prova é hoje!':`Prova em ${dp} dia${dp>1?'s':''}`, body: `${p.orgao} — ${truncate(p.unidade,50)}`, urgent: dp<=1});
+      const di = inDays(p.inscricaoAte);
+      if(di!==null && di>=0 && di<=3 && !p.inscrito) alerts.push({icon:'📋', title: di===0?'Inscrição fecha hoje!':`Inscrição fecha em ${di} dia${di>1?'s':''}`, body: `${p.orgao} — ${truncate(p.unidade,50)}`, urgent: true});
+    });
+    (DB.concursos||[]).forEach(c=>{
+      const dp = inDays(c.dataProva);
+      if(dp!==null && dp>=0 && dp<=5) alerts.push({icon:'🏛️', title: dp===0?'Prova é hoje!':`Prova em ${dp} dia${dp>1?'s':''}`, body: c.nome, urgent: dp<=1});
+    });
+    if(alerts.length){
+      setTimeout(()=>{
+        alerts.slice(0,3).forEach((a,i)=> setTimeout(()=> notifyCorner(a.icon, a.title, a.body, {accentColor: a.urgent?'var(--bad)':'var(--gold)', duration:9500}), i*400));
+      }, 1600);
+    }
+    DB.settings.lastExamNotifDate = today;
+    saveKey('settings');
   })();
 
   // notificação diária: frase motivacional (ou "modo durão" se estiver enrolando)
