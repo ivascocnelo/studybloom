@@ -1082,7 +1082,7 @@ async function loadAll(){
   if(DB.goals.minSleepHours===undefined) DB.goals.minSleepHours = 7;
   if(!DB.profile) DB.profile={email:'',targetRole:'',avatarEmoji:'🌸',joinDate:''};
   if(!DB.profile.joinDate){ DB.profile.joinDate = todayISO(); await saveKey('profile'); }
-  if(!DB.seeded){ seedDemoData(); DB.seeded = true; await saveKey('seeded'); await saveAllSeeded(); }
+  if(!DB.seeded){ DB.seeded = true; await saveKey('seeded'); }
 }
 async function saveKey(k){
   try{ await storageSet(STORE_PREFIX+k, JSON.stringify(DB[k])); }
@@ -6468,7 +6468,8 @@ function toggleMusicPanel(show){
       const todayMinNow = DB.studySessions.filter(s=>s.date===todayISO()).reduce((a,s)=>a+s.minutes,0);
       const hourNow = new Date().getHours();
       const slackDays = countSlackingDays();
-      if(DB.settings.toughLoveMode && todayMinNow===0 && hourNow>=12){
+      const isBrandNew = DB.studySessions.length===0;
+      if(DB.settings.toughLoveMode && todayMinNow===0 && hourNow>=12 && !isBrandNew){
         let q = toughLoveQuoteFor(hourNow<16?'mild':hourNow<19?'medium':'heavy');
         if(slackDays>=2) q += ` (E olha, já são ${slackDays} dias seguidos nessa mesma pegadinha. Bora quebrar esse ciclo hoje?)`;
         notifyUser('😈 '+q);
@@ -6498,7 +6499,7 @@ function toggleMusicPanel(show){
     if(DB.settings.lastToughNudge===key) return;
     const todayMinNow = DB.studySessions.filter(s=>s.date===todayISO()).reduce((a,s)=>a+s.minutes,0);
     const todayQNow = DB.questionSessions.filter(q=>q.date===todayISO()).reduce((a,q)=>a+q.total,0);
-    if(todayMinNow < DB.goals.dailyStudyMinutes){
+    if(todayMinNow < DB.goals.dailyStudyMinutes && DB.studySessions.length>0){
       let q = toughLoveQuoteFor(cp.tier);
       const slackDays = countSlackingDays();
       if(cp.tier==='heavy' && slackDays>=2) q += ` Já são ${slackDays} dias seguidos ficando devendo. Amanhã eu não vou deixar quieto.`;
