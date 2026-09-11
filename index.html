@@ -3466,7 +3466,7 @@ function inlineSelectCell(value, options, onSave){
     const overdueInsc = p.inscricaoAte && !p.inscrito && p.inscricaoAte<today;
     const tr = el('tr',{style:'border-bottom:1px solid var(--line);'});
     const saveField = async (field,val)=>{ p[field]=val; await saveKey('provasEstagio'); if(['inscricaoAte','dataProva','inscrito'].includes(field)) syncProvaToAgenda(p); go('provas'); };
-    tr.appendChild(el('td',{style:'padding:9px 12px;'}, [el('span',{class:'badge b-plum'}, p.orgao||'—')]));
+    tr.appendChild(el('td',{style:'padding:9px 12px;'}, [el('span',{class:'badge '+((p.orgao||'').toUpperCase().includes('MP')?'b-red':'b-plum')}, p.orgao||'—')]));
     tr.appendChild(el('td',{style:'padding:9px 12px;font-weight:700;white-space:normal;max-width:220px;min-width:160px;line-height:1.3;cursor:pointer;',onclick:()=>openProvaForm(p),title:'Clique para editar tudo'}, p.unidade));
     tr.appendChild(inlineTextCell(p.cidade, v=>saveField('cidade',v), {placeholder:'cidade'}));
     tr.appendChild(inlineDateCell(p.inscricaoAte, v=>saveField('inscricaoAte',v), overdueInsc));
