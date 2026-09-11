@@ -184,6 +184,8 @@ input,textarea,select{font-family:inherit;}
 .datetime-pill .dt-clock{font-family:'Fraunces',serif;font-weight:700;font-size:15.5px;color:var(--forest);letter-spacing:.02em;min-width:60px;font-variant-numeric:tabular-nums;}
 #cornerNotifications{position:fixed;top:20px;right:20px;z-index:850;display:flex;flex-direction:column;gap:10px;max-width:340px;width:calc(100% - 40px);}
 .corner-notif{background:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 14px 36px rgba(35,33,52,.2);display:flex;gap:12px;align-items:flex-start;animation:slideInRight .25s ease;border-left:4px solid var(--forest);cursor:default;}
+.corner-notif.cn-clickable{cursor:pointer;transition:transform .12s ease,box-shadow .12s ease;}
+.corner-notif.cn-clickable:hover{transform:translateX(-3px);box-shadow:0 16px 40px rgba(35,33,52,.28);}
 .corner-notif.leaving{animation:slideOutRight .22s ease forwards;}
 .corner-notif .cn-icon{font-size:22px;flex-shrink:0;line-height:1;}
 .corner-notif .cn-title{font-weight:700;font-size:13.5px;margin-bottom:2px;line-height:1.3;}
@@ -1245,13 +1247,15 @@ function notifyCorner(icon, title, body, opts){
   opts = opts || {};
   const container = document.getElementById('cornerNotifications');
   if(!container) return;
-  const card = el('div',{class:'corner-notif', style: opts.accentColor? `border-left-color:${opts.accentColor};` : ''},[
+  const card = el('div',{class:'corner-notif'+(opts.tab?' cn-clickable':''), style: opts.accentColor? `border-left-color:${opts.accentColor};` : '',
+    onclick: opts.tab? (e)=>{ if(e.target.closest('.cn-close')) return; removeNotif(); go(opts.tab); } : undefined
+  },[
     el('span',{class:'cn-icon'}, icon),
     el('div',{style:'flex:1;min-width:0;'},[
       el('div',{class:'cn-title'}, title),
       body? el('div',{class:'cn-body'}, body) : null
     ]),
-    el('button',{class:'cn-close', onclick:()=>removeNotif()},'✕')
+    el('button',{class:'cn-close', onclick:(e)=>{ e.stopPropagation(); removeNotif(); }},'✕')
   ]);
   container.appendChild(card);
   function removeNotif(){ card.classList.add('leaving'); setTimeout(()=>card.remove(), 220); }
@@ -5901,7 +5905,7 @@ function getAchievements(){
 function checkAchievements(){
   const list = getAchievements().filter(a=>a.done).map(a=>a.label);
   const newOnes = list.filter(l=>!DB.achievementsSeen.includes(l));
-  if(newOnes.length){ DB.achievementsSeen = list; saveKey('achievementsSeen'); notifyCorner('🏆','Nova conquista desbloqueada!', newOnes[0], {accentColor:'var(--gold)', duration:8500}); }
+  if(newOnes.length){ DB.achievementsSeen = list; saveKey('achievementsSeen'); notifyCorner('🏆','Nova conquista desbloqueada!', newOnes[0], {accentColor:'var(--gold)', duration:8500, tab:'historico'}); }
 }
 
 /* =========================================================
@@ -6755,17 +6759,17 @@ function toggleMusicPanel(show){
     const alerts = [];
     (DB.provasEstagio||[]).forEach(p=>{
       const dp = inDays(p.dataProva);
-      if(dp!==null && dp>=0 && dp<=5) alerts.push({icon:'✍️', title: dp===0?'Prova é hoje!':`Prova em ${dp} dia${dp>1?'s':''}`, body: `${p.orgao} — ${truncate(p.unidade,50)}`, urgent: dp<=1});
+      if(dp!==null && dp>=0 && dp<=5) alerts.push({icon:'✍️', title: dp===0?'Prova é hoje!':`Prova em ${dp} dia${dp>1?'s':''}`, body: `${p.orgao} — ${truncate(p.unidade,50)}`, urgent: dp<=1, tab:'provas'});
       const di = inDays(p.inscricaoAte);
-      if(di!==null && di>=0 && di<=3 && !p.inscrito) alerts.push({icon:'📋', title: di===0?'Inscrição fecha hoje!':`Inscrição fecha em ${di} dia${di>1?'s':''}`, body: `${p.orgao} — ${truncate(p.unidade,50)}`, urgent: true});
+      if(di!==null && di>=0 && di<=3 && !p.inscrito) alerts.push({icon:'📋', title: di===0?'Inscrição fecha hoje!':`Inscrição fecha em ${di} dia${di>1?'s':''}`, body: `${p.orgao} — ${truncate(p.unidade,50)}`, urgent: true, tab:'provas'});
     });
     (DB.concursos||[]).forEach(c=>{
       const dp = inDays(c.dataProva);
-      if(dp!==null && dp>=0 && dp<=5) alerts.push({icon:'🏛️', title: dp===0?'Prova é hoje!':`Prova em ${dp} dia${dp>1?'s':''}`, body: c.nome, urgent: dp<=1});
+      if(dp!==null && dp>=0 && dp<=5) alerts.push({icon:'🏛️', title: dp===0?'Prova é hoje!':`Prova em ${dp} dia${dp>1?'s':''}`, body: c.nome, urgent: dp<=1, tab:'concursos'});
     });
     if(alerts.length){
       setTimeout(()=>{
-        alerts.slice(0,3).forEach((a,i)=> setTimeout(()=> notifyCorner(a.icon, a.title, a.body, {accentColor: a.urgent?'var(--bad)':'var(--gold)', duration:9500}), i*400));
+        alerts.slice(0,3).forEach((a,i)=> setTimeout(()=> notifyCorner(a.icon, a.title, a.body, {accentColor: a.urgent?'var(--bad)':'var(--gold)', duration:9500, tab:a.tab}), i*400));
       }, 1600);
     }
     DB.settings.lastExamNotifDate = today;
