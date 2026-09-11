@@ -526,7 +526,30 @@ input,textarea,select{font-family:inherit;}
   position:fixed;inset:0;z-index:600;display:flex;align-items:center;justify-content:center;padding:20px;
   background:radial-gradient(circle at 6% 4%, rgba(239,79,120,.18), transparent 40%), radial-gradient(circle at 94% 10%, rgba(90,155,236,.18), transparent 44%), var(--paper);
 }
-.cloud-auth-card{background:#fff;border-radius:22px;padding:32px 30px;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(35,33,52,.2);}
+.auth-split-wrap{
+  display:flex;max-width:880px;width:100%;min-height:540px;border-radius:26px;overflow:hidden;
+  box-shadow:0 30px 80px rgba(35,33,52,.25);background:#fff;
+}
+.auth-brand-panel{
+  flex:0 0 44%;background:linear-gradient(155deg,var(--forest) 0%,var(--plum) 58%,var(--sage) 100%);
+  color:#fff;padding:48px 40px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden;
+}
+.auth-brand-panel::before{
+  content:'';position:absolute;inset:0;opacity:.14;pointer-events:none;
+  background-image:radial-gradient(circle, #fff 1.6px, transparent 1.6px);background-size:28px 28px;
+}
+.auth-brand-mark{width:52px;height:52px;border-radius:16px;background:rgba(255,255,255,.18);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;font-size:26px;position:relative;z-index:1;}
+.auth-brand-tagline{font-family:'Fraunces',serif;font-size:29px;font-weight:700;line-height:1.28;position:relative;z-index:1;text-shadow:0 2px 12px rgba(0,0,0,.1);}
+.auth-brand-sub{font-size:14px;opacity:.92;line-height:1.6;margin-top:14px;position:relative;z-index:1;max-width:320px;}
+.auth-brand-foot{font-size:12px;opacity:.75;position:relative;z-index:1;}
+.auth-form-panel{flex:1;padding:52px 46px;display:flex;flex-direction:column;justify-content:center;}
+.cloud-auth-card{width:100%;max-width:330px;margin:0 auto;}
+@media(max-width:760px){
+  .auth-brand-panel{display:none;}
+  .auth-mobile-brand{display:flex !important;}
+  .auth-split-wrap{border-radius:20px;min-height:auto;}
+  .auth-form-panel{padding:38px 26px;}
+}
 </style>
 </head>
 <body>
@@ -843,19 +866,34 @@ function buildAuthCard(mode, subtitleTexts, onSubmit, onToggleMode, onDisable){
   submitBtn.addEventListener('click', submit);
   pwInp.addEventListener('keydown', e=>{ if(e.key==='Enter') submit(); });
 
-  return el('div',{class:'cloud-auth-card'},[
-    el('div',{style:'width:60px;height:60px;border-radius:50%;background:linear-gradient(140deg,var(--forest),var(--gold) 60%,var(--sage));display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 14px;'},'☁️'),
-    el('div',{style:'font-family:Fraunces,serif;font-size:20px;font-weight:700;text-align:center;margin-bottom:6px;'},'Study Bloom na nuvem'),
-    el('div',{class:'muted',style:'text-align:center;margin-bottom:22px;font-size:13.5px;line-height:1.5;'}, subtitleTexts),
-    el('div',{class:'field',style:'margin-bottom:14px;'},[el('label',{},'E-mail'), emailWrap]),
-    el('div',{class:'field',style:'margin-bottom:4px;'},[el('label',{},'Senha'), pwWrap]),
-    errLine,
-    submitBtn,
-    el('button',{type:'button', style:'width:100%;margin-top:14px;background:none;border:none;color:var(--forest);font-weight:600;font-size:13.5px;cursor:pointer;padding:8px;',onclick:onToggleMode}, mode==='login'?'Ainda não tenho conta — criar':'Já tenho conta — entrar'),
-    el('div',{style:'text-align:center;margin-top:16px;padding-top:14px;border-top:1px solid var(--line);'},[
-      el('button',{type:'button', style:'background:none;border:none;color:var(--muted);font-size:11.5px;cursor:pointer;text-decoration:underline;',onclick:onDisable},'Desativar nuvem neste aparelho')
+  const brandPanel = el('div',{class:'auth-brand-panel'},[
+    el('div',{class:'auth-brand-mark'},'🌸'),
+    el('div',{},[
+      el('div',{class:'auth-brand-tagline'},'Aqui o hábito vira rotina.'),
+      el('div',{class:'auth-brand-sub'},'E a rotina, dia após dia, vira aprovação. Seus estudos te acompanham em qualquer computador ou celular.')
+    ]),
+    el('div',{class:'auth-brand-foot'},'🌸 Study Bloom')
+  ]);
+  const mobileBrand = el('div',{class:'auth-mobile-brand',style:'display:none;align-items:center;gap:10px;margin-bottom:24px;'},[
+    el('div',{style:'width:38px;height:38px;border-radius:11px;background:linear-gradient(140deg,var(--forest),var(--gold) 60%,var(--sage));display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;'},'🌸'),
+    el('div',{style:'font-family:Fraunces,serif;font-weight:700;font-size:15px;'},'Aqui o hábito vira rotina.')
+  ]);
+  const formPanel = el('div',{class:'auth-form-panel'},[
+    el('div',{class:'cloud-auth-card'},[
+      mobileBrand,
+      el('div',{style:'font-family:Fraunces,serif;font-size:23px;font-weight:700;margin-bottom:6px;'}, mode==='login'?'Bem-vinda de volta':'Criar sua conta'),
+      el('div',{class:'muted',style:'margin-bottom:26px;font-size:13.5px;line-height:1.5;'}, subtitleTexts),
+      el('div',{class:'field',style:'margin-bottom:14px;'},[el('label',{},'E-mail'), emailWrap]),
+      el('div',{class:'field',style:'margin-bottom:4px;'},[el('label',{},'Senha'), pwWrap]),
+      errLine,
+      submitBtn,
+      el('button',{type:'button', style:'width:100%;margin-top:14px;background:none;border:none;color:var(--forest);font-weight:600;font-size:13.5px;cursor:pointer;padding:8px;',onclick:onToggleMode}, mode==='login'?'Ainda não tenho conta — criar':'Já tenho conta — entrar'),
+      el('div',{style:'text-align:center;margin-top:16px;padding-top:14px;border-top:1px solid var(--line);'},[
+        el('button',{type:'button', style:'background:none;border:none;color:var(--muted);font-size:11.5px;cursor:pointer;text-decoration:underline;',onclick:onDisable},'Desativar nuvem neste aparelho')
+      ])
     ])
   ]);
+  return el('div',{class:'auth-split-wrap'},[brandPanel, formPanel]);
 }
 function showCloudAuthScreen(){
   return new Promise((resolve)=>{
