@@ -1759,9 +1759,9 @@ function statusDot(status){
 
 /* generic modal */
 const AVATAR_STYLES = [
-  ['adventurer','Aventureira'], ['avataaars','Desenho'], ['bottts','Robozinho'],
-  ['fun-emoji','Emoji'], ['lorelei','Ilustrado'], ['micah','Moderno'],
-  ['personas','Personas'], ['pixel-art','Pixel'], ['thumbs','Geométrico'],
+  ['adventurer','Aventureira'], ['avataaars','Desenho'], ['big-smile','Sorridente'],
+  ['croodles','Rabisco'], ['lorelei','Ilustrado'], ['micah','Moderno'],
+  ['notionists','Fofinho'], ['open-peeps','Artístico'], ['fun-emoji','Emoji'],
 ];
 const AVATAR_BG_COLORS = ['ffd5dc','ffe4a3','c7f0d8','c9e2fb','e3d4fc','fdf1e0'];
 function openAvatarGenerator(onSave){
@@ -1771,8 +1771,17 @@ function openAvatarGenerator(onSave){
 
   function previewUrl(){ return `https://api.dicebear.com/10.x/${style}/svg?seed=${encodeURIComponent(seed)}&backgroundColor=${bg}`; }
 
-  const bigPreview = el('img',{src:previewUrl(), style:'width:140px;height:140px;border-radius:50%;display:block;margin:0 auto 16px;background:#fff;box-shadow:0 4px 14px rgba(0,0,0,.1);'});
+  const bigPreview = el('img',{src:previewUrl(), style:'width:120px;height:120px;border-radius:50%;display:block;margin:0 auto 10px;background:#fff;box-shadow:0 4px 14px rgba(0,0,0,.1);'});
   function refreshPreview(){ bigPreview.src = previewUrl(); }
+
+  const seedInp = el('input',{value:seed, style:'text-align:center;max-width:170px;'});
+  seedInp.addEventListener('input', ()=>{ seed=seedInp.value||'avatar'; refreshPreview(); });
+  const randomBtn = el('button',{type:'button', class:'btn btn-ghost btn-sm', onclick:()=>{ seed='seed'+Math.floor(Math.random()*100000); seedInp.value=seed; refreshPreview(); }},'🎲 Aleatório');
+
+  const previewBlock = el('div',{style:'position:sticky;top:-1px;background:#fff;z-index:5;padding-bottom:12px;margin-bottom:12px;border-bottom:1px solid var(--line);text-align:center;'},[
+    bigPreview,
+    el('div',{style:'display:flex;align-items:center;gap:8px;justify-content:center;flex-wrap:wrap;'}, [seedInp, randomBtn])
+  ]);
 
   const styleGrid = el('div',{style:'display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;'});
   AVATAR_STYLES.forEach(([key,label])=>{
@@ -1788,7 +1797,7 @@ function openAvatarGenerator(onSave){
     });
   }
 
-  const bgRow = el('div',{style:'display:flex;gap:7px;justify-content:center;margin-bottom:14px;'});
+  const bgRow = el('div',{style:'display:flex;gap:7px;justify-content:center;margin-bottom:6px;'});
   function renderBgRow(){
     bgRow.innerHTML='';
     AVATAR_BG_COLORS.forEach(c=>{
@@ -1798,18 +1807,12 @@ function openAvatarGenerator(onSave){
   }
   renderBgRow();
 
-  const seedInp = el('input',{value:seed, style:'text-align:center;'});
-  seedInp.addEventListener('input', ()=>{ seed=seedInp.value||'avatar'; refreshPreview(); });
-  const randomBtn = el('button',{type:'button', class:'btn btn-ghost btn-sm', onclick:()=>{ seed='seed'+Math.floor(Math.random()*100000); seedInp.value=seed; refreshPreview(); }},'🎲 Aleatório');
-
-  const body = el('div',{style:'text-align:center;'},[
-    bigPreview,
+  const body = el('div',{style:'text-align:center;max-height:60vh;overflow-y:auto;'},[
+    previewBlock,
     el('div',{class:'muted',style:'font-size:12px;margin-bottom:6px;'},'Estilo'),
     styleGrid,
     el('div',{class:'muted',style:'font-size:12px;margin-bottom:6px;'},'Cor de fundo'),
     bgRow,
-    el('div',{class:'field',style:'max-width:220px;margin:0 auto;'},[el('label',{},'Semente (muda o resultado)'), seedInp]),
-    randomBtn,
   ]);
   const foot = el('div',{style:'display:flex;gap:8px;'},[
     el('button',{class:'btn btn-ghost',onclick:closeModal},'✕ Cancelar'),
