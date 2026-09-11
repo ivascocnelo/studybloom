@@ -866,17 +866,26 @@ function buildAuthCard(mode, subtitleTexts, onSubmit, onToggleMode, onDisable){
   submitBtn.addEventListener('click', submit);
   pwInp.addEventListener('keydown', e=>{ if(e.key==='Enter') submit(); });
 
+  const AUTH_TAGLINES = [
+    ['Aqui o hábito vira rotina.', 'E a rotina, dia após dia, vira aprovação. Seus estudos te acompanham em qualquer computador ou celular.'],
+    ['Um passo de cada vez te leva ao topo da montanha.', 'Não precisa ser rápido, precisa ser constante. Seu progresso fica salvo, esperando você continuar.'],
+    ['Disciplina é o caminho até o sonho.', 'Todo grande resultado começa em dias comuns, feitos com constância. Vamos construir o seu.'],
+    ['Cada dia de estudo é um tijolo.', 'Aos poucos, sem pressa, você está construindo o cargo que quer ocupar.'],
+    ['Quem persiste, chega.', 'Seus dados te seguem em qualquer aparelho — só falta você continuar.'],
+  ];
+  const [taglineMain, taglineSub] = pickRandom(AUTH_TAGLINES);
+
   const brandPanel = el('div',{class:'auth-brand-panel'},[
     el('div',{class:'auth-brand-mark'},'🌸'),
     el('div',{},[
-      el('div',{class:'auth-brand-tagline'},'Aqui o hábito vira rotina.'),
-      el('div',{class:'auth-brand-sub'},'E a rotina, dia após dia, vira aprovação. Seus estudos te acompanham em qualquer computador ou celular.')
+      el('div',{class:'auth-brand-tagline'}, taglineMain),
+      el('div',{class:'auth-brand-sub'}, taglineSub)
     ]),
     el('div',{class:'auth-brand-foot'},'🌸 Study Bloom')
   ]);
   const mobileBrand = el('div',{class:'auth-mobile-brand',style:'display:none;align-items:center;gap:10px;margin-bottom:24px;'},[
     el('div',{style:'width:38px;height:38px;border-radius:11px;background:linear-gradient(140deg,var(--forest),var(--gold) 60%,var(--sage));display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;'},'🌸'),
-    el('div',{style:'font-family:Fraunces,serif;font-weight:700;font-size:15px;'},'Aqui o hábito vira rotina.')
+    el('div',{style:'font-family:Fraunces,serif;font-weight:700;font-size:15px;'}, taglineMain)
   ]);
   const formPanel = el('div',{class:'auth-form-panel'},[
     el('div',{class:'cloud-auth-card'},[
