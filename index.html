@@ -6356,6 +6356,8 @@ const AMBIENT_SOUNDS = [
   {key:'pink', icon:'🌸', label:'Ruído rosa'},
   {key:'brown', icon:'🟤', label:'Ruído marrom'},
   {key:'rain', icon:'🌧️', label:'Chuva'},
+  {key:'waves', icon:'🌊', label:'Mar / Ondas'},
+  {key:'river', icon:'💧', label:'Água corrente'},
   {key:'focus40', icon:'🧠', label:'Foco 40Hz'},
   {key:'relax10', icon:'😌', label:'Relaxar 10Hz'},
 ];
@@ -6364,7 +6366,7 @@ const BINAURAL_TYPES = {
   relax10: {base:200, beat:10},  // onda alfa — associada a relaxamento alerta
 };
 let musicAudioCtx = null, musicNoiseSource = null, musicGainNode = null, musicFilterNode = null, musicPlayingType = null;
-let musicOscL = null, musicOscR = null;
+let musicOscL = null, musicOscR = null, musicLFO = null, musicLFOGain = null, musicLFO2 = null, musicLFOGain2 = null;
 function ensureAudioCtx(){
   if(!musicAudioCtx) musicAudioCtx = new (window.AudioContext||window.webkitAudioContext)();
   return musicAudioCtx;
@@ -6373,6 +6375,8 @@ function stopAmbientSound(){
   if(musicNoiseSource){ try{ musicNoiseSource.stop(); }catch(e){} musicNoiseSource=null; }
   if(musicOscL){ try{ musicOscL.stop(); }catch(e){} musicOscL=null; }
   if(musicOscR){ try{ musicOscR.stop(); }catch(e){} musicOscR=null; }
+  if(musicLFO){ try{ musicLFO.stop(); }catch(e){} musicLFO=null; }
+  if(musicLFO2){ try{ musicLFO2.stop(); }catch(e){} musicLFO2=null; }
   musicPlayingType = null;
   document.getElementById('musicFab').classList.remove('playing');
   renderMusicSoundGrid();
@@ -6395,6 +6399,12 @@ function playBinaural(type){
   document.getElementById('musicFab').classList.add('playing');
   renderMusicSoundGrid();
 }
+function ambientBaseMult(type){
+  return {rain:0.42, waves:0.30, river:0.38}[type] ?? 0.6;
+}
+function ambientLfoMult(type){
+  return {rain:0.1, waves:0.24, river:0.06}[type] ?? 0;
+}
 function playAmbientSound(type){
   if(BINAURAL_TYPES[type]){ playBinaural(type); return; }
   stopAmbientSound();
@@ -6402,7 +6412,8 @@ function playAmbientSound(type){
   const bufferSize = 2*ctx.sampleRate;
   const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
   const output = buffer.getChannelData(0);
-  if(type==='white' || type==='rain'){
+  const vol = (Number(document.getElementById('musicVolume').value)||35)/100;
+  if(type==='white' || type==='rain' || type==='river'){
     for(let i=0;i<bufferSize;i++) output[i] = Math.random()*2-1;
   } else if(type==='pink'){
     let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
@@ -6412,18 +6423,49 @@ function playAmbientSound(type){
       b3=0.86650*b3+white*0.3104856; b4=0.55000*b4+white*0.5329522; b5=-0.7616*b5-white*0.0168980;
       output[i]=(b0+b1+b2+b3+b4+b5+b6+white*0.5362)*0.11; b6=white*0.115926;
     }
-  } else { // brown
+  } else { // brown, waves
     let last=0;
     for(let i=0;i<bufferSize;i++){ const white=Math.random()*2-1; last=(last+0.02*white)/1.02; output[i]=last*3.5; }
   }
   musicNoiseSource = ctx.createBufferSource();
   musicNoiseSource.buffer = buffer; musicNoiseSource.loop = true;
   musicGainNode = ctx.createGain();
-  musicGainNode.gain.value = (Number(document.getElementById('musicVolume').value)||35)/100 * 0.6;
+  musicGainNode.gain.value = vol * 0.6;
+
   if(type==='rain'){
-    musicFilterNode = ctx.createBiquadFilter();
-    musicFilterNode.type='lowpass'; musicFilterNode.frequency.value=1200;
+    // chuva: "chiado" médio-agudo (não é só ruído branco cru) + leve variação de intensidade, tipo rajadas
+    const hp = ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=550;
+    musicFilterNode = ctx.createBiquadFilter(); musicFilterNode.type='lowpass'; musicFilterNode.frequency.value=3200; musicFilterNode.Q.value=0.4;
+    musicNoiseSource.connect(hp).connect(musicFilterNode).connect(musicGainNode).connect(ctx.destination);
+    musicGainNode.gain.value = vol*ambientBaseMult('rain');
+    musicLFO = ctx.createOscillator(); musicLFO.frequency.value=0.13; musicLFO.type='sine';
+    musicLFOGain = ctx.createGain(); musicLFOGain.gain.value = vol*ambientLfoMult('rain');
+    musicLFO.connect(musicLFOGain).connect(musicGainNode.gain);
+    musicLFO.start();
+    // uma segunda camada bem sutil e mais grave, pra dar corpo (tipo chuva batendo em telhado ao fundo)
+    musicLFO2 = ctx.createOscillator(); musicLFO2.frequency.value=0.05; musicLFO2.type='sine';
+    musicLFOGain2 = ctx.createGain(); musicLFOGain2.gain.value = vol*0.05;
+    musicLFO2.connect(musicLFOGain2).connect(musicFilterNode.frequency);
+    musicLFO2.start();
+  } else if(type==='waves'){
+    // mar: ruído marrom (grave, "cheio") + balanço lento simulando ondas quebrando e recuando
+    musicFilterNode = ctx.createBiquadFilter(); musicFilterNode.type='lowpass'; musicFilterNode.frequency.value=650;
     musicNoiseSource.connect(musicFilterNode).connect(musicGainNode).connect(ctx.destination);
+    musicGainNode.gain.value = vol*ambientBaseMult('waves');
+    musicLFO = ctx.createOscillator(); musicLFO.frequency.value=0.11; musicLFO.type='sine'; // ~9s por ciclo de onda
+    musicLFOGain = ctx.createGain(); musicLFOGain.gain.value = vol*ambientLfoMult('waves');
+    musicLFO.connect(musicLFOGain).connect(musicGainNode.gain);
+    musicLFO.start();
+  } else if(type==='river'){
+    // água corrente: textura clara e constante, sem balanço (fluxo contínuo, tipo riacho)
+    const hp = ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=900;
+    musicFilterNode = ctx.createBiquadFilter(); musicFilterNode.type='bandpass'; musicFilterNode.frequency.value=2100; musicFilterNode.Q.value=0.55;
+    musicNoiseSource.connect(hp).connect(musicFilterNode).connect(musicGainNode).connect(ctx.destination);
+    musicGainNode.gain.value = vol*ambientBaseMult('river');
+    musicLFO = ctx.createOscillator(); musicLFO.frequency.value=0.6; musicLFO.type='sine'; // um tremor rápido e sutil, tipo borbulhar
+    musicLFOGain = ctx.createGain(); musicLFOGain.gain.value = vol*ambientLfoMult('river');
+    musicLFO.connect(musicLFOGain).connect(musicGainNode.gain);
+    musicLFO.start();
   } else {
     musicNoiseSource.connect(musicGainNode).connect(ctx.destination);
   }
@@ -6697,8 +6739,10 @@ function toggleMusicPanel(show){
   });
   document.getElementById('musicVolume').addEventListener('input', (e)=>{
     if(musicGainNode){
-      const mult = BINAURAL_TYPES[musicPlayingType]? 0.18 : 0.6;
-      musicGainNode.gain.value = (Number(e.target.value)||0)/100*mult;
+      const mult = BINAURAL_TYPES[musicPlayingType]? 0.18 : ambientBaseMult(musicPlayingType);
+      const vol = (Number(e.target.value)||0)/100;
+      musicGainNode.gain.value = vol*mult;
+      if(musicLFOGain) musicLFOGain.gain.value = vol*ambientLfoMult(musicPlayingType);
     }
   });
   document.querySelectorAll('#musicTabs button').forEach(btn=>{
