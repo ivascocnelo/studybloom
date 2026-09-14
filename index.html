@@ -3708,7 +3708,7 @@ function inlineTextCell(value, onSave, opts){
   function renderDisplay(){
     td.innerHTML='';
     td.appendChild(el('span',{}, value || opts.placeholder || '—'));
-    td.onclick = renderEdit;
+    td.onclick = ()=> setTimeout(renderEdit, 0);
   }
   function renderEdit(){
     td.innerHTML='';
@@ -3728,7 +3728,7 @@ function inlineDateCell(value, onSave, danger){
   function renderDisplay(){
     td.innerHTML='';
     td.appendChild(el('span',{}, value? fmtDate(value) : '—'));
-    td.onclick = renderEdit;
+    td.onclick = ()=> setTimeout(renderEdit, 0);
   }
   function renderEdit(){
     td.innerHTML='';
@@ -3748,7 +3748,7 @@ function inlineSelectCell(value, options, onSave){
     td.innerHTML='';
     const opt = options.find(o=>o[0]===value) || options[0];
     td.appendChild(el('span',{class:'badge '+(opt[2]||'b-grey'), style:'font-size:10px;padding:2px 6px;white-space:nowrap;'}, opt[1]));
-    td.onclick = renderEdit;
+    td.onclick = ()=> setTimeout(renderEdit, 0);
   }
   function renderEdit(){
     td.innerHTML='';
@@ -3756,6 +3756,7 @@ function inlineSelectCell(value, options, onSave){
     options.forEach(o=> sel.appendChild(el('option',{value:o[0], selected:o[0]===value?'selected':undefined}, o[1])));
     td.appendChild(sel);
     sel.focus();
+    try{ sel.showPicker && sel.showPicker(); }catch(e){}
     let saved=false;
     sel.addEventListener('change', ()=>{ saved=true; onSave(sel.value); });
     sel.addEventListener('blur', ()=>{ setTimeout(()=>{ if(!saved) renderDisplay(); },150); });
