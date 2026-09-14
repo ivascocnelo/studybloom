@@ -4603,6 +4603,9 @@ function openBookForm(b){
   const pagesRead=el('input',{type:'number',min:'0',value:isNew?0:b.pagesRead});
   const dueDate=el('input',{type:'date',value:isNew?'':(b.dueDate||'')});
   const statusSel=el('select',{}); [['quero-ler','Quero ler'],['lendo','Lendo'],['pausado','Pausado'],['concluido','Concluído']].forEach(([v,l])=>statusSel.appendChild(el('option',{value:v,selected:(!isNew&&b.status===v)?'selected':undefined},l)));
+  statusSel.addEventListener('change', ()=>{
+    if(statusSel.value==='concluido'){ pagesRead.value = pages.value || pagesRead.value; toast('Marcado como concluído — páginas lidas preenchidas com o total. 📖'); }
+  });
   const notes=el('textarea',{},isNew?'':b.notes||'');
   const coverPreview = el('div',{class:'book-cover',style:'height:150px;margin-bottom:8px;'}, isNew? el('div',{},'Sem capa') : (b.cover? el('img',{src:b.cover}) : el('div',{},'Sem capa')));
   let coverData = isNew? '' : (b.cover||'');
