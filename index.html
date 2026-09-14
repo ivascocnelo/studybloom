@@ -1228,6 +1228,25 @@ async function loadAll(){
     await saveKey('concursos');
     await saveKey('settings');
   }
+  // segundo lote: concursos previstos/especulados na área de tribunais/polícia judiciária, região ampliada
+  if(DB.settings.iaraConcursosV2!==true && typeof spUser!=='undefined' && spUser && spUser.email==='iara_carmelo@hotmail.com'){
+    const newConcursos2 = [
+      {nome:'TJDFT — Técnico e Analista Judiciário', orgao:'Tribunal de Justiça do Distrito Federal e Territórios', cargo:'Técnico/Analista Judiciário', local:'DF', banca:'', salario:'~R$ 9.776 (Técnico) / ~R$ 16.041 (Analista)', vagas:'426 (LOA 2026, ainda não detalhadas)', situacao:'previsto', previsao:'2026/2027', dataEdital:'', dataProva:'', link:'https://www.tjdft.jus.br', obs:'Órgão diz não ter previsão imediata, mas validade do concurso atual vence em novembro/2026 — altamente esperado no médio prazo.'},
+      {nome:'TJSP — Oficial de Justiça / Escrevente Técnico Judiciário', orgao:'Tribunal de Justiça de São Paulo', cargo:'Oficial de Justiça / Escrevente Técnico Judiciário', local:'SP', banca:'', salario:'até R$ 7,8 mil (Escrevente)', vagas:'720 cargos de Escrevente já criados', situacao:'previsto', previsao:'2026', dataEdital:'', dataProva:'', link:'https://www.tjsp.jus.br', obs:'Tribunal em fase de estudos para os dois cargos — nenhum edital publicado ainda.'},
+      {nome:'TRF-3 — Técnico/Analista Judiciário', orgao:'Tribunal Regional Federal da 3ª Região', cargo:'Técnico/Analista Judiciário', local:'SP e MS', banca:'', salario:'', vagas:'', situacao:'previsto', previsao:'2026', dataEdital:'', dataProva:'', link:'https://www.trf3.jus.br', obs:'Expectativa de nova seleção — atende os estados de SP e MS.'},
+      {nome:'TRT Mato Grosso — servidores', orgao:'Tribunal Regional do Trabalho da 23ª Região (MT)', cargo:'Técnico/Analista Judiciário', local:'MT', banca:'', salario:'', vagas:'', situacao:'previsto', previsao:'2026', dataEdital:'', dataProva:'', link:'https://www.trt23.jus.br', obs:'Estudos iniciados para novo concurso de servidores.'},
+      {nome:'PCPR — Agente de Polícia Judiciária / Delegado / Papiloscopista (2027)', orgao:'Polícia Civil do Paraná', cargo:'Agente de Polícia Judiciária / Delegado / Papiloscopista', local:'PR', banca:'FGV (edital anterior)', salario:'R$ 9.007,67 (Agente/Papiloscopista) / R$ 26.876,48 (Delegado)', vagas:'500 Agentes + 80 Delegados + 80 Papiloscopistas (planejamento 2027)', situacao:'autorizado', previsao:'2027', dataEdital:'', dataProva:'', link:'https://conhecimento.fgv.br/concursos/pcpr26', obs:'O edital de 2026 já teve inscrições encerradas (12/08/2026) — essa é a leva seguinte, com verba já solicitada na LOA 2027 pelo Conselho Superior da PCPR.'},
+    ];
+    const existingNomes2 = DB.concursos.map(c=>(c.nome||'').toLowerCase());
+    newConcursos2.forEach(nc=>{
+      if(!existingNomes2.includes(nc.nome.toLowerCase())){
+        DB.concursos.push({id:uid(), ...nc});
+      }
+    });
+    DB.settings.iaraConcursosV2 = true;
+    await saveKey('concursos');
+    await saveKey('settings');
+  }
   if(!DB.seeded){ DB.seeded = true; await saveKey('seeded'); }
 }
 async function saveKey(k){
