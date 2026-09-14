@@ -6385,7 +6385,28 @@ RENDERERS.config = function(main){
 
   const dangerCard = el('div',{class:'card'});
   dangerCard.appendChild(el('div',{class:'card-title',style:'margin-bottom:10px;'},'Dados'));
-  dangerCard.appendChild(el('div',{class:'muted',style:'margin-bottom:10px;'},'Apagar todos os dados de demonstração e começar do zero.'));
+  dangerCard.appendChild(el('div',{class:'muted',style:'margin-bottom:6px;'},'Prefere zerar só uma coisa específica, sem apagar o resto?'));
+  dangerCard.appendChild(el('div',{style:'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;'},[
+    el('button',{class:'btn btn-ghost btn-sm',onclick: async ()=>{
+      if(!confirm('Isso apaga todo o histórico de tempo de estudo registrado (sessões e o cronômetro acumulado), sem mexer em matérias, provas, flashcards etc. Continuar?')) return;
+      DB.studySessions = [];
+      await saveKey('studySessions');
+      toast('Tempo de estudo zerado. 🌱'); updateSidebarGreeting(); go('dashboard');
+    }},'⏱️ Zerar só tempo de estudo'),
+    el('button',{class:'btn btn-ghost btn-sm',onclick: async ()=>{
+      if(!confirm('Isso apaga todas as sessões de questões registradas (o placar de acertos/erros), sem mexer no resto. Continuar?')) return;
+      DB.questionSessions = [];
+      await saveKey('questionSessions');
+      toast('Questões zeradas. 🌱'); go('dashboard');
+    }},'📝 Zerar só questões'),
+    el('button',{class:'btn btn-ghost btn-sm',onclick: async ()=>{
+      if(!confirm('Isso apaga a sequência de dias/conquistas registradas até agora (sem mexer nos estudos em si). Continuar?')) return;
+      DB.achievementsSeen = [];
+      await saveKey('achievementsSeen');
+      toast('Conquistas resetadas.'); go('dashboard');
+    }},'🏆 Zerar só conquistas'),
+  ]));
+  dangerCard.appendChild(el('div',{class:'muted',style:'margin-bottom:10px;'},'Ou apagar tudo mesmo e começar do zero absoluto.'));
   dangerCard.appendChild(el('button',{class:'btn btn-danger',onclick: async ()=>{
     if(!confirm('Isso apaga TODOS os dados do app (matérias, concursos, flashcards, livros, etc). Deseja continuar?')) return;
     const keepName = DB.settings.userName;
