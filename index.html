@@ -196,6 +196,8 @@ input,textarea,select{font-family:inherit;}
 .provas-table td, .provas-table th{min-width:0;overflow:hidden;}
 .provas-table td input, .provas-table td select{min-width:0 !important;width:100% !important;box-sizing:border-box;}
 .provas-table td .badge{max-width:100%;overflow:hidden;text-overflow:ellipsis;display:inline-block;vertical-align:middle;}
+.provas-table td[title='Clique para editar']{transition:background .12s ease;border-radius:6px;}
+.provas-table td[title='Clique para editar']:hover{background:rgba(239,79,120,.08);}
 @keyframes slideInRight{from{transform:translateX(36px);opacity:0;}to{transform:translateX(0);opacity:1;}}
 @keyframes slideOutRight{to{transform:translateX(36px);opacity:0;}}
 @media(max-width:600px){ #cornerNotifications{top:12px;right:12px;left:12px;max-width:none;} }
@@ -3712,7 +3714,7 @@ function inlineTextCell(value, onSave, opts){
   }
   function renderEdit(){
     td.innerHTML='';
-    const inp = el('input',{value:value||'', style:'padding:6px 7px;font-size:12.5px;width:100%;box-sizing:border-box;'});
+    const inp = el('input',{value:value||'', style:'padding:6px 8px;font-size:12.5px;width:100%;box-sizing:border-box;border:1.5px solid var(--forest);border-radius:7px;background:#fff9fb;box-shadow:0 2px 8px rgba(239,79,120,.15);outline:none;'});
     td.appendChild(inp);
     inp.focus(); inp.select();
     let saved=false;
@@ -3732,7 +3734,7 @@ function inlineDateCell(value, onSave, danger){
   }
   function renderEdit(){
     td.innerHTML='';
-    const inp = el('input',{type:'date', value:value||'', style:'width:100%;box-sizing:border-box;padding:5px 4px;font-size:12px;'});
+    const inp = el('input',{type:'date', value:value||'', style:'width:100%;box-sizing:border-box;padding:5px 6px;font-size:12px;border:1.5px solid var(--forest);border-radius:7px;background:#fff9fb;box-shadow:0 2px 8px rgba(239,79,120,.15);outline:none;'});
     td.appendChild(inp);
     inp.focus();
     let saved=false;
@@ -3752,7 +3754,7 @@ function inlineSelectCell(value, options, onSave){
   }
   function renderEdit(){
     td.innerHTML='';
-    const sel = el('select',{style:'font-size:12px;padding:5px 4px;width:100%;box-sizing:border-box;'});
+    const sel = el('select',{style:'font-size:12px;padding:5px 6px;width:100%;box-sizing:border-box;border:1.5px solid var(--forest);border-radius:7px;background:#fff9fb;box-shadow:0 2px 8px rgba(239,79,120,.15);outline:none;cursor:pointer;'});
     options.forEach(o=> sel.appendChild(el('option',{value:o[0], selected:o[0]===value?'selected':undefined}, o[1])));
     td.appendChild(sel);
     sel.focus();
