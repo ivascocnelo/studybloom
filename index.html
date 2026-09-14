@@ -6389,9 +6389,21 @@ RENDERERS.config = function(main){
   dangerCard.appendChild(el('button',{class:'btn btn-danger',onclick: async ()=>{
     if(!confirm('Isso apaga TODOS os dados do app (matérias, concursos, flashcards, livros, etc). Deseja continuar?')) return;
     const keepName = DB.settings.userName;
-    DB = {subjects:[],studySessions:[],questionSessions:[],goals:{dailyStudyMinutes:180,dailyQuestions:100,weeklyFlashcards:30,minSleepHours:7},concursos:[],provasEstagio:[],flashcards:[],books:[],brainLog:[],meditationLog:[],sleepLog:[],simulados:[],spotifyAuth:null,gameScores:{},videoBlocks:[],videos:[],mantras:[],lectioDraft:{passage:'',meditatio:'',oratio:'',contemplatio:'',acao:''},lectioHistory:[],prayerToday:'',prayerHistory:[],events:[],quickNotes:'',profile:{email:'',targetRole:'',avatarEmoji:'🌸',joinDate:todayISO(),birthdate:'',city:'',phone:'',education:'',targetExamDate:'',bio:''},liturgyByDate:{},gospelCache:{},gospelFavorites:[],achievementsSeen:[],settings:{morningReminder:'',morningReminderOn:false,userName:keepName,appLock:{enabled:false,pinHash:'',pinLength:0,hint:''}},seeded:true};
+    DB = {
+      subjects:[], studySessions:[], questionSessions:[],
+      goals:{dailyStudyMinutes:180, dailyQuestions:100, weeklyFlashcards:30, minSleepHours:7},
+      concursos:[], provasEstagio:[], desabafos:[], watchlist:[], errorNotes:[],
+      flashcards:[], books:[], brainLog:[], meditationLog:[], sleepLog:[], simulados:[],
+      spotifyAuth:null, gameScores:{}, videoBlocks:[], videos:[], mantras:[],
+      lectioDraft:{passage:'',meditatio:'',oratio:'',contemplatio:'',acao:''}, lectioHistory:[],
+      prayerToday:'', prayerHistory:[], events:[], quickNotes:'',
+      profile:{email:'',targetRole:'',avatarEmoji:'🌸',photo:'',joinDate:todayISO(),birthdate:'',city:'',phone:'',education:'',targetExamDate:'',bio:''},
+      liturgyByDate:{}, gospelCache:{}, gospelFavorites:[], achievementsSeen:[],
+      settings:{morningReminder:'', morningReminderOn:false, userName:keepName, appLock:{enabled:false,pinHash:'',pinLength:0,hint:''}, toughLoveMode:true, bgTheme:'floral', customBgImage:'', oracaoBannerTheme:'padrao', oracaoBannerCustom:'', oracaoBannerSize:'fina', browserNotifications:false, tourShown:true, lastBackupExport:'', lastBackupReminderShown:'', lastExamNotifDate:''},
+      seeded:true
+    };
     for(const k of KEYS) await saveKey(k);
-    toast('Todos os dados foram apagados.'); updateSidebarGreeting(); go('dashboard');
+    toast('Todos os dados foram apagados. Pronta pra começar do zero! 🌱'); updateSidebarGreeting(); go('dashboard');
   }},'🗑 Apagar todos os dados'));
   main.appendChild(dangerCard);
 };
