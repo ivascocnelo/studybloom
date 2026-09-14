@@ -2232,6 +2232,46 @@ const Timer = {
 /* =========================================================
    DASHBOARD
    ========================================================= */
+function buildUpcomingExamsBanner(){
+  const today = todayISO();
+  const inDays = (dateStr)=> dateStr? Math.round((new Date(dateStr+'T00:00:00')-new Date(today+'T00:00:00'))/86400000) : null;
+  const items = [];
+  (DB.provasEstagio||[]).forEach(p=>{
+    const dp = inDays(p.dataProva);
+    if(dp!==null && dp>=0 && dp<=7) items.push({days:dp, icon:'✍️', label:`${p.orgao} — ${truncate(p.unidade,42)}`, kind:'Prova', tab:'provas'});
+    const di = inDays(p.inscricaoAte);
+    if(di!==null && di>=0 && di<=5 && !p.inscrito) items.push({days:di, icon:'📋', label:`${p.orgao} — ${truncate(p.unidade,42)}`, kind:'Inscrição', tab:'provas'});
+  });
+  (DB.concursos||[]).forEach(c=>{
+    const dp = inDays(c.dataProva);
+    if(dp!==null && dp>=0 && dp<=7) items.push({days:dp, icon:'🏛️', label:c.nome, kind:'Prova', tab:'concursos'});
+  });
+  if(!items.length) return null;
+  items.sort((a,b)=>a.days-b.days);
+  const mostUrgent = items[0].days<=1;
+
+  const banner = el('div',{class:'card',style:`margin-bottom:16px;border:1.5px solid ${mostUrgent?'#f4b6c2':'#f3d9a0'};background:linear-gradient(120deg,${mostUrgent?'#fff0f3,#fff8ec':'#fff8ec,#fffdf5'});position:relative;overflow:hidden;`});
+  banner.appendChild(el('div',{style:'display:flex;align-items:center;gap:10px;margin-bottom:10px;'},[
+    el('span',{style:'font-size:20px;'}, mostUrgent?'🚨':'⏰'),
+    el('div',{style:'font-weight:700;font-size:14.5px;'}, mostUrgent? 'Atenção — isso é pra já!' : 'Provas e prazos chegando')
+  ]));
+  items.slice(0,4).forEach(it=>{
+    const urgent = it.days<=1;
+    banner.appendChild(el('div',{style:'display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;cursor:pointer;transition:background .12s;',
+      onmouseenter:(e)=>e.currentTarget.style.background='rgba(255,255,255,.6)', onmouseleave:(e)=>e.currentTarget.style.background='transparent',
+      onclick:()=>go(it.tab)
+    },[
+      el('span',{style:'font-size:16px;'}, it.icon),
+      el('div',{style:'flex:1;font-size:13px;'},[
+        el('b',{}, it.days===0? `${it.kind} é hoje!` : it.days===1? `${it.kind} é amanhã!` : `${it.kind} em ${it.days} dias`),
+        ' — '+it.label
+      ]),
+      el('span',{class:'badge '+(urgent?'b-red':'b-gold'),style:'flex-shrink:0;'}, it.days===0?'HOJE':`${it.days}d`)
+    ]));
+  });
+  if(items.length>4) banner.appendChild(el('div',{class:'muted',style:'font-size:12px;margin-top:4px;padding-left:10px;'}, `+ ${items.length-4} outro${items.length-4>1?'s':''}...`));
+  return banner;
+}
 RENDERERS.dashboard = function(main){
   const today = todayISO();
   const todayMin = DB.studySessions.filter(s=>s.date===today).reduce((a,s)=>a+s.minutes,0);
@@ -2265,6 +2305,9 @@ RENDERERS.dashboard = function(main){
   startLiveClock();
 
   main.appendChild(buildSearchWidget('Pesquisar matérias, flashcards, livros, concursos...'));
+
+  const upcomingBanner = buildUpcomingExamsBanner();
+  if(upcomingBanner) main.appendChild(upcomingBanner);
 
   // 4 pastel stat cards
   main.appendChild(el('h3',{style:'margin:2px 0 10px;font-size:15.5px;color:var(--muted);'},'📊 Resumo de hoje'));
