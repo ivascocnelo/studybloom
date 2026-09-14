@@ -1186,6 +1186,30 @@ async function loadAll(){
     await saveKey('books');
     await saveKey('settings');
   }
+  // presente único: matérias comuns de concurso TJ/MP já cadastradas, só nessa conta, uma única vez
+  if(DB.settings.iaraSubjectsV1!==true && typeof spUser!=='undefined' && spUser && spUser.email==='iara_carmelo@hotmail.com'){
+    const mkTopic = (name)=>({id:uid(),name,status:'nao-iniciado',studiedMin:0,questions:0,correct:0,notes:''});
+    const defaultSubjects = [
+      {name:'Português', goalMinutes:30, topics:['Interpretação de texto','Concordância verbal e nominal','Crase','Pontuação','Regência']},
+      {name:'Direito Constitucional', goalMinutes:45, topics:['Direitos e garantias fundamentais','Organização do Estado','Poder Judiciário','Controle de constitucionalidade']},
+      {name:'Direito Administrativo', goalMinutes:45, topics:['Atos administrativos','Licitações e contratos','Servidores públicos','Poderes administrativos']},
+      {name:'Direito Civil', goalMinutes:40, topics:['Pessoas e bens','Obrigações','Contratos','Família e sucessões']},
+      {name:'Direito Processual Civil', goalMinutes:40, topics:['Processo de conhecimento','Recursos','Execução','Prazos processuais']},
+      {name:'Direito Penal', goalMinutes:35, topics:['Teoria do crime','Penas','Crimes em espécie']},
+      {name:'Direito Processual Penal', goalMinutes:35, topics:['Inquérito policial','Ação penal','Prisões cautelares','Recursos']},
+      {name:'Raciocínio Lógico', goalMinutes:30, topics:['Lógica proposicional','Sequências e sucessões','Probabilidade']},
+      {name:'Informática', goalMinutes:20, topics:['Noções de hardware/software','Segurança da informação','Pacote Office']},
+    ];
+    const existingNames = DB.subjects.map(s=>(s.name||'').toLowerCase());
+    defaultSubjects.forEach((ds,i)=>{
+      if(!existingNames.includes(ds.name.toLowerCase())){
+        DB.subjects.push({id:uid(), name:ds.name, goalMinutes:ds.goalMinutes, color:SUBJECT_COLORS[i%SUBJECT_COLORS.length], topics:ds.topics.map(mkTopic)});
+      }
+    });
+    DB.settings.iaraSubjectsV1 = true;
+    await saveKey('subjects');
+    await saveKey('settings');
+  }
   if(!DB.seeded){ DB.seeded = true; await saveKey('seeded'); }
 }
 async function saveKey(k){
