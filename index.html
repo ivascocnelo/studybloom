@@ -4610,11 +4610,14 @@ function openBookForm(b){
   const fileInp = el('input',{type:'file',accept:'image/*'});
   fileInp.addEventListener('change', ()=>{
     const file=fileInp.files[0]; if(!file) return;
-    openPhotoEditor(file, setCover, {shape:'rect', aspect:0.68, outW:400});
+    const reader = new FileReader();
+    reader.onload = ()=>{ setCover(reader.result); toast('Capa adicionada!'); };
+    reader.onerror = ()=>{ toast('Não consegui ler essa imagem — tenta outra foto.'); };
+    reader.readAsDataURL(file);
     fileInp.value='';
   });
   const body=el('div',{},[
-    el('div',{class:'field'},[el('label',{},'📷 Capa do livro'), coverPreview, fileInp, coverData? el('button',{type:'button',class:'btn btn-ghost btn-sm',style:'margin-top:6px;',onclick:()=>openPhotoEditor(coverData, setCover, {shape:'rect', aspect:0.68, outW:400})},'🔧 Ajustar posição/zoom') : null]),
+    el('div',{class:'field'},[el('label',{},'📷 Capa do livro'), coverPreview, fileInp, coverData? el('button',{type:'button',class:'btn-x',style:'margin-top:6px;',onclick:()=>{ coverData=''; coverPreview.innerHTML=''; coverPreview.appendChild(el('div',{},'Sem capa')); }},'✕ Remover foto') : null]),
     el('div',{class:'field'},[el('label',{},'Título'), title]),
     el('div',{class:'row'},[el('div',{class:'field'},[el('label',{},'Autor'), author]),el('div',{class:'field'},[el('label',{},'Gênero'), genre, genreList])]),
     el('div',{class:'row'},[el('div',{class:'field'},[el('label',{},'Total de páginas'), pages]),el('div',{class:'field'},[el('label',{},'Páginas lidas'), pagesRead])]),
