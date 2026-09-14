@@ -1973,9 +1973,10 @@ function openPhotoEditor(fileOrDataUrl, onSave, opts){
   });
 }
 
+let modalStack = [];
 function openModal(title, bodyNode, footNode){
   const root = document.getElementById('modalRoot');
-  root.innerHTML='';
+  if(root.firstChild){ modalStack.push(root.firstChild); root.removeChild(root.firstChild); }
   const overlay = el('div',{class:'overlay',onclick:(e)=>{ if(e.target===overlay) closeModal(); }});
   const modal = el('div',{class:'modal'});
   const head = el('div',{class:'modal-head'},[
@@ -1989,7 +1990,11 @@ function openModal(title, bodyNode, footNode){
   overlay.appendChild(modal);
   root.appendChild(overlay);
 }
-function closeModal(){ document.getElementById('modalRoot').innerHTML=''; }
+function closeModal(){
+  const root = document.getElementById('modalRoot');
+  root.innerHTML='';
+  if(modalStack.length){ root.appendChild(modalStack.pop()); }
+}
 
 /* =========================================================
    ASSISTANT — dynamic message
