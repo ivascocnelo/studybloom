@@ -1212,6 +1212,22 @@ async function loadAll(){
     await saveKey('subjects');
     await saveKey('settings');
   }
+  // presente único: concursos reais e abertos agora (pesquisados), só nessa conta, uma única vez
+  if(DB.settings.iaraConcursosV1!==true && typeof spUser!=='undefined' && spUser && spUser.email==='iara_carmelo@hotmail.com'){
+    const newConcursos = [
+      {nome:'TJPR — Contador', orgao:'Tribunal de Justiça do Paraná', cargo:'Contador', local:'Curitiba/PR', banca:'Fundatec', salario:'R$ 23.264,47', vagas:'2 + cadastro de reserva', situacao:'inscricoes', previsao:'2026', dataEdital:'2026-08-17', dataProva:'2026-10-18', link:'https://www.fundatec.org.br', obs:'⚠️ Inscrições terminam HOJE, 14/09/2026! Exige graduação em Ciências Contábeis + registro ativo no CRC-PR. Confira se o cargo bate com sua formação antes de se inscrever.'},
+      {nome:'MPPR — Promotor Substituto', orgao:'Ministério Público do Paraná', cargo:'Promotor Substituto', local:'PR', banca:'', salario:'', vagas:'10 + cadastro de reserva', situacao:'inscricoes', previsao:'2026', dataEdital:'', dataProva:'', link:'https://mppr.mp.br', obs:'Inscrições terminam 16/10/2026. Exige bacharelado em Direito + OAB + tempo mínimo de atividade jurídica — nível bem mais avançado que estágio. Confirme os requisitos completos no edital antes de se inscrever.'},
+    ];
+    const existingNomes = DB.concursos.map(c=>(c.nome||'').toLowerCase());
+    newConcursos.forEach(nc=>{
+      if(!existingNomes.includes(nc.nome.toLowerCase())){
+        DB.concursos.push({id:uid(), ...nc});
+      }
+    });
+    DB.settings.iaraConcursosV1 = true;
+    await saveKey('concursos');
+    await saveKey('settings');
+  }
   if(!DB.seeded){ DB.seeded = true; await saveKey('seeded'); }
 }
 async function saveKey(k){
