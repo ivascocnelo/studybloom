@@ -3651,6 +3651,19 @@ RENDERERS.concursos = function(main){
     'Fique de olho nos concursos que importam pra você. Assim que uma informação mudar — edital, banca, data da prova — é só clicar em editar e atualizar. Nada fica travado.',
     [el('button',{class:'btn-hero',onclick:()=>openConcursoForm(null)},'+ Novo concurso')]));
   if(!DB.concursos.length){ main.appendChild(el('div',{class:'card'},[el('div',{class:'empty'},[el('div',{class:'big'},'🏛️'),'Nenhum concurso cadastrado ainda.'])])); return; }
+
+  const totalCount = DB.concursos.length;
+  const inscritos = DB.concursos.filter(c=>c.inscrito).length;
+  const interesse = DB.concursos.filter(c=>c.interesse).length;
+  const abertos = DB.concursos.filter(c=>c.situacao==='inscricoes').length;
+
+  const statsRow = el('div',{class:'grid g4',style:'margin-bottom:16px;'});
+  statsRow.appendChild(statCardPastel2('stat-pink','Total cadastrados', String(totalCount), 'concursos'));
+  statsRow.appendChild(statCardPastel2('stat-blue','Inscrita', String(inscritos), `de ${totalCount}`));
+  statsRow.appendChild(statCardPastel2('stat-lav','Tenho interesse', String(interesse), `de ${totalCount}`));
+  statsRow.appendChild(statCardPastel2('stat-mint','Inscrições abertas agora', String(abertos), abertos>0? '⏰ correndo!' : 'nenhum no momento'));
+  main.appendChild(statsRow);
+
   const grid = el('div',{class:'grid g2'});
   DB.concursos.forEach(c=>{
     const sm = statusMeta(c.situacao);
@@ -3659,6 +3672,10 @@ RENDERERS.concursos = function(main){
     card.appendChild(el('div',{class:'card-head'},[
       el('div',{},[el('div',{class:'card-title'},c.nome),el('div',{class:'muted'},`${c.orgao||''}${c.cargo?' · '+c.cargo:''}`)]),
       el('span',{class:'status-chip',style:`background:${sm[2]};color:${sm[3]};`},sm[1])
+    ]));
+    card.appendChild(el('div',{style:'display:flex;gap:8px;margin-bottom:8px;'},[
+      el('button',{type:'button', class:'badge '+(c.interesse?'b-plum':'b-grey'), style:'cursor:pointer;border:none;', onclick: async ()=>{ c.interesse=!c.interesse; await saveKey('concursos'); go('concursos'); }}, c.interesse?'💜 Tenho interesse':'🤍 Marcar interesse'),
+      el('button',{type:'button', class:'badge '+(c.inscrito?'b-green':'b-grey'), style:'cursor:pointer;border:none;', onclick: async ()=>{ c.inscrito=!c.inscrito; await saveKey('concursos'); go('concursos'); }}, c.inscrito?'✅ Inscrita':'⬜ Marcar como inscrita'),
     ]));
     card.appendChild(el('div',{class:'grid g2',style:'gap:6px;margin-bottom:8px;'},[
       infoLine('Banca', c.banca||'—'), infoLine('Local', c.local||'—'),
@@ -3683,12 +3700,14 @@ RENDERERS.concursos = function(main){
 function infoLine(label,val){ return el('div',{style:'font-size:14px;'},[el('span',{class:'muted'},label+': '),el('span',{},val)]); }
 
 function openConcursoForm(c){
-  const isNew=!c; const f = isNew? {nome:'',orgao:'',cargo:'',local:'',banca:'',salario:'',vagas:'',situacao:'previsto',previsao:'',dataEdital:'',dataProva:'',link:'',obs:''} : {...c};
+  const isNew=!c; const f = isNew? {nome:'',orgao:'',cargo:'',local:'',banca:'',salario:'',vagas:'',situacao:'previsto',previsao:'',dataEdital:'',dataProva:'',link:'',obs:'',inscrito:false,interesse:false} : {...c};
   const inp = (k,type='text') => el('input',{type,value:f[k]||''});
   const nome=inp('nome'), orgao=inp('orgao'), cargo=inp('cargo'), local=inp('local'), banca=inp('banca'), salario=inp('salario'), vagas=inp('vagas');
   const previsao=inp('previsao'), dataEdital=inp('dataEdital','date'), dataProva=inp('dataProva','date'), link=inp('link');
   const obs=el('textarea',{},f.obs||'');
   const situacao=el('select',{}); CONCURSO_STATUS.forEach(s=> situacao.appendChild(el('option',{value:s[0], selected: f.situacao===s[0]?'selected':undefined}, s[1])) );
+  const interesseChk=el('input',{type:'checkbox'}); interesseChk.checked=!!f.interesse;
+  const inscritoChk=el('input',{type:'checkbox'}); inscritoChk.checked=!!f.inscrito;
 
   const body=el('div',{},[
     el('div',{class:'field'},[el('label',{},'Nome do concurso'), nome]),
@@ -3696,6 +3715,7 @@ function openConcursoForm(c){
     el('div',{class:'row'},[el('div',{class:'field'},[el('label',{},'Estado/Cidade'), local]), el('div',{class:'field'},[el('label',{},'Banca'), banca])]),
     el('div',{class:'row'},[el('div',{class:'field'},[el('label',{},'Salário'), salario]), el('div',{class:'field'},[el('label',{},'Vagas'), vagas])]),
     el('div',{class:'field'},[el('label',{},'Situação'), situacao]),
+    el('div',{class:'row'},[el('div',{class:'field'},[el('label',{style:'display:flex;align-items:center;gap:6px;'},[interesseChk,'💜 Tenho interesse'])]),el('div',{class:'field'},[el('label',{style:'display:flex;align-items:center;gap:6px;'},[inscritoChk,'✅ Já estou inscrita'])])]),
     el('div',{class:'row'},[el('div',{class:'field'},[el('label',{},'Previsão (ex: 2026)'), previsao]), el('div',{class:'field'},[el('label',{},'Data do edital'), dataEdital])]),
     el('div',{class:'field'},[el('label',{},'Data da prova'), dataProva]),
     el('div',{class:'field'},[el('label',{},'Link oficial'), link]),
@@ -3705,7 +3725,7 @@ function openConcursoForm(c){
     el('button',{class:'btn btn-ghost',onclick:closeModal},'✕ Sair sem salvar'),
     el('button',{class:'btn btn-primary',onclick: async ()=>{
       const name=nome.value.trim(); if(!name){ toast('Digite o nome do concurso.'); return; }
-      const data={nome:name,orgao:orgao.value,cargo:cargo.value,local:local.value,banca:banca.value,salario:salario.value,vagas:vagas.value,situacao:situacao.value,previsao:previsao.value,dataEdital:dataEdital.value,dataProva:dataProva.value,link:link.value,obs:obs.value};
+      const data={nome:name,orgao:orgao.value,cargo:cargo.value,local:local.value,banca:banca.value,salario:salario.value,vagas:vagas.value,situacao:situacao.value,previsao:previsao.value,dataEdital:dataEdital.value,dataProva:dataProva.value,link:link.value,obs:obs.value,interesse:interesseChk.checked,inscrito:inscritoChk.checked};
       if(isNew) DB.concursos.push({id:uid(),...data}); else Object.assign(c,data);
       await saveKey('concursos'); closeModal(); go('concursos'); toast('Concurso salvo.');
     }},'💾 Salvar')
