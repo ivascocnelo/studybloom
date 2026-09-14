@@ -3590,16 +3590,16 @@ RENDERERS.provas = function(main){
   });
 
   const wrap = el('div',{class:'card',style:'overflow-x:auto;padding:0;'});
-  const table = el('table',{style:'width:100%;border-collapse:collapse;font-size:12.5px;white-space:nowrap;'});
+  const table = el('table',{style:'width:100%;border-collapse:collapse;font-size:14px;white-space:nowrap;'});
   const headRow = el('tr',{style:'background:var(--paper);'});
   ['Órgão','Vara / Gabinete / Secretaria','Cidade','Inscrição até','Inscrito?','Data da prova','Modalidade','Teletrabalho','Bolsa','Colocação','Resultado','Link',''].forEach(h=>
-    headRow.appendChild(el('th',{style:'text-align:left;padding:10px 12px;font-weight:700;color:#8a5a78;position:sticky;top:0;background:var(--paper);border-bottom:2px solid var(--line);'},h))
+    headRow.appendChild(el('th',{style:'text-align:left;padding:14px 16px;font-weight:700;color:#8a5a78;position:sticky;top:0;background:var(--paper);border-bottom:2px solid var(--line);font-size:13px;'},h))
   );
   table.appendChild(headRow);
 
 function inlineTextCell(value, onSave, opts){
   opts = opts || {};
-  const td = el('td',{style:'padding:9px 12px;cursor:pointer;', title:'Clique para editar'});
+  const td = el('td',{style:'padding:14px 16px;cursor:pointer;min-width:110px;', title:'Clique para editar'});
   function renderDisplay(){
     td.innerHTML='';
     td.appendChild(el('span',{}, value || opts.placeholder || '—'));
@@ -3607,7 +3607,7 @@ function inlineTextCell(value, onSave, opts){
   }
   function renderEdit(){
     td.innerHTML='';
-    const inp = el('input',{value:value||'', style:'padding:4px 6px;font-size:12.5px;width:100%;min-width:110px;'});
+    const inp = el('input',{value:value||'', style:'padding:8px 10px;font-size:14px;width:100%;min-width:130px;box-sizing:border-box;'});
     td.appendChild(inp);
     inp.focus(); inp.select();
     let saved=false;
@@ -3619,7 +3619,7 @@ function inlineTextCell(value, onSave, opts){
   return td;
 }
 function inlineDateCell(value, onSave, danger){
-  const td = el('td',{style:`padding:9px 12px;cursor:pointer;${danger?'color:var(--bad);font-weight:700;':''}`, title:'Clique para editar'});
+  const td = el('td',{style:`padding:14px 16px;cursor:pointer;min-width:120px;${danger?'color:var(--bad);font-weight:700;':''}`, title:'Clique para editar'});
   function renderDisplay(){
     td.innerHTML='';
     td.appendChild(el('span',{}, value? fmtDate(value) : '—'));
@@ -3638,7 +3638,7 @@ function inlineDateCell(value, onSave, danger){
   return td;
 }
 function inlineSelectCell(value, options, onSave){
-  const td = el('td',{style:'padding:9px 12px;cursor:pointer;', title:'Clique para editar'});
+  const td = el('td',{style:'padding:14px 16px;cursor:pointer;min-width:110px;', title:'Clique para editar'});
   function renderDisplay(){
     td.innerHTML='';
     const opt = options.find(o=>o[0]===value) || options[0];
@@ -3647,7 +3647,7 @@ function inlineSelectCell(value, options, onSave){
   }
   function renderEdit(){
     td.innerHTML='';
-    const sel = el('select',{style:'font-size:12.5px;padding:3px;'});
+    const sel = el('select',{style:'font-size:14px;padding:7px 8px;width:100%;box-sizing:border-box;'});
     options.forEach(o=> sel.appendChild(el('option',{value:o[0], selected:o[0]===value?'selected':undefined}, o[1])));
     td.appendChild(sel);
     sel.focus();
@@ -3663,8 +3663,8 @@ function inlineSelectCell(value, options, onSave){
     const overdueInsc = p.inscricaoAte && !p.inscrito && p.inscricaoAte<today;
     const tr = el('tr',{style:'border-bottom:1px solid var(--line);'});
     const saveField = async (field,val)=>{ p[field]=val; await saveKey('provasEstagio'); if(['inscricaoAte','dataProva','inscrito'].includes(field)) syncProvaToAgenda(p); go('provas'); };
-    tr.appendChild(el('td',{style:'padding:9px 12px;'}, [el('span',{class:'badge '+((p.orgao||'').toUpperCase().includes('MP')?'b-red':'b-plum')}, p.orgao||'—')]));
-    tr.appendChild(el('td',{style:'padding:9px 12px;font-weight:700;white-space:normal;max-width:220px;min-width:160px;line-height:1.3;cursor:pointer;',onclick:()=>openProvaForm(p),title:'Clique para editar tudo'}, p.unidade));
+    tr.appendChild(el('td',{style:'padding:14px 16px;'}, [el('span',{class:'badge '+((p.orgao||'').toUpperCase().includes('MP')?'b-red':'b-plum')}, p.orgao||'—')]));
+    tr.appendChild(el('td',{style:'padding:14px 16px;font-weight:700;white-space:normal;max-width:280px;min-width:200px;line-height:1.4;cursor:pointer;font-size:14px;',onclick:()=>openProvaForm(p),title:'Clique para editar tudo'}, p.unidade));
     tr.appendChild(inlineTextCell(p.cidade, v=>saveField('cidade',v), {placeholder:'cidade'}));
     tr.appendChild(inlineDateCell(p.inscricaoAte, v=>saveField('inscricaoAte',v), overdueInsc));
     tr.appendChild(inlineSelectCell(p.inscrito, [[true,'Sim','b-green'],[false,'Não','b-grey']], v=>saveField('inscrito', v==='true'||v===true)));
@@ -3674,10 +3674,10 @@ function inlineSelectCell(value, options, onSave){
     tr.appendChild(inlineTextCell(p.bolsa, v=>saveField('bolsa',v), {placeholder:'R$'}));
     tr.appendChild(inlineTextCell(p.colocacao, v=>saveField('colocacao',v), {placeholder:'ainda não sei'}));
     tr.appendChild(inlineSelectCell(p.resultado||'aguardando', [['aguardando','Aguardando','b-grey'],['passei','🎉 Passei','b-green'],['nao-passei','Não passei','b-red']], v=>saveField('resultado',v)));
-    tr.appendChild(el('td',{style:'padding:9px 12px;'}, p.link? el('a',{href:p.link,target:'_blank',rel:'noopener',class:'card-link'},'Abrir ↗') : '—'));
-    tr.appendChild(el('td',{style:'padding:9px 12px;'},[
-      el('button',{class:'btn btn-ghost btn-sm',style:'padding:3px 7px;',onclick:()=>openProvaForm(p)},'✎'),
-      el('button',{class:'btn-x',onclick:()=>{ if(confirm('Excluir esta prova? (os lembretes na Agenda também somem)')){ DB.provasEstagio=DB.provasEstagio.filter(x=>x.id!==p.id); saveKey('provasEstagio'); removeProvaFromAgenda(p.id); go('provas'); } }},'✕')
+    tr.appendChild(el('td',{style:'padding:14px 16px;'}, p.link? el('a',{href:p.link,target:'_blank',rel:'noopener',class:'card-link'},'Abrir ↗') : '—'));
+    tr.appendChild(el('td',{style:'padding:14px 16px;'},[
+      el('button',{class:'btn btn-ghost btn-sm',style:'padding:5px 9px;font-size:13px;',onclick:()=>openProvaForm(p)},'✎'),
+      el('button',{class:'btn-x',style:'font-size:13px;',onclick:()=>{ if(confirm('Excluir esta prova? (os lembretes na Agenda também somem)')){ DB.provasEstagio=DB.provasEstagio.filter(x=>x.id!==p.id); saveKey('provasEstagio'); removeProvaFromAgenda(p.id); go('provas'); } }},'✕')
     ]));
     table.appendChild(tr);
   });
