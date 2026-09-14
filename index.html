@@ -1161,6 +1161,31 @@ async function loadAll(){
   if(DB.goals.minSleepHours===undefined) DB.goals.minSleepHours = 7;
   if(!DB.profile) DB.profile={email:'',targetRole:'',avatarEmoji:'🌸',joinDate:''};
   if(!DB.profile.joinDate){ DB.profile.joinDate = todayISO(); await saveKey('profile'); }
+  // presente único: adiciona a lista de livros pedida, só nessa conta específica, uma única vez
+  if(DB.settings.iaraBooksV1!==true && typeof spUser!=='undefined' && spUser && spUser.email==='iara_carmelo@hotmail.com'){
+    const newBooks = [
+      {title:'Cartas a um Jovem Poeta', author:'Rainer Maria Rilke', pages:130},
+      {title:'O Deus que Destrói Sonhos', author:'', pages:250},
+      {title:'O Alienista', author:'Machado de Assis', pages:100},
+      {title:'Noites Brancas', author:'Fiódor Dostoiévski', pages:110},
+      {title:'O Ceifador', author:'', pages:300},
+      {title:'O Massacre da Família Hope', author:'', pages:300},
+      {title:'A Outra', author:'', pages:300},
+      {title:'A Coragem de Não Agradar', author:'Ichiro Kishimi e Fumitake Koga', pages:280},
+      {title:'Amor Teoricamente', author:'Ali Hazelwood', pages:380, genre:'Romance'},
+      {title:'O Erro', author:'', pages:300},
+      {title:'O Acordo', author:'', pages:300},
+    ];
+    const existingTitles = DB.books.map(b=>(b.title||'').toLowerCase());
+    newBooks.forEach(nb=>{
+      if(!existingTitles.includes(nb.title.toLowerCase())){
+        DB.books.push({id:uid(), title:nb.title, author:nb.author||'', genre:nb.genre||'', pages:nb.pages, pagesRead:0, status:'lendo', notes:'', cover:'', dueDate:'', rating:0, startDate:todayISO()});
+      }
+    });
+    DB.settings.iaraBooksV1 = true;
+    await saveKey('books');
+    await saveKey('settings');
+  }
   if(!DB.seeded){ DB.seeded = true; await saveKey('seeded'); }
 }
 async function saveKey(k){
