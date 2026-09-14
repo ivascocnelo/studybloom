@@ -1247,6 +1247,24 @@ async function loadAll(){
     await saveKey('concursos');
     await saveKey('settings');
   }
+  // terceiro lote: concursos da tabela que você mandou, conferidos e confirmados
+  if(DB.settings.iaraConcursosV3!==true && typeof spUser!=='undefined' && spUser && spUser.email==='iara_carmelo@hotmail.com'){
+    const newConcursos3 = [
+      {nome:'TCDF — Analista Administrativo de Controle Externo', orgao:'Tribunal de Contas do Distrito Federal', cargo:'Analista Administrativo de Controle Externo', local:'Brasília/DF', banca:'Cebraspe', salario:'R$ 14.990,41', vagas:'10 + cadastro de reserva', situacao:'inscricoes', previsao:'2026', dataEdital:'2026-07-09', dataProva:'2026-11-22', link:'', obs:'🚨 Inscrições terminam 17/09/2026 — só faltam 3 dias! Não exige formação específica (qualquer curso superior). É Tribunal de Contas (fiscalização), não judiciário.'},
+      {nome:'TRT-9 — Técnico e Analista Judiciário (PR)', orgao:'Tribunal Regional do Trabalho da 9ª Região', cargo:'Técnico/Analista Judiciário', local:'PR', banca:'', salario:'R$ 9.776,74 (Técnico) / R$ 16.041,21 (Analista)', vagas:'ainda não definidas (~200+ vacâncias)', situacao:'previsto', previsao:'2026', dataEdital:'', dataProva:'', link:'', obs:'Tribunal confirmou estudos para novo edital (9/jan). Validade do concurso atual (2022) vai até novembro/2026 — janela apertada, edital novo é bem esperado.'},
+      {nome:'TJGO — Analista Judiciário', orgao:'Tribunal de Justiça de Goiás', cargo:'Analista Judiciário (Judiciária e Apoio)', local:'GO', banca:'', salario:'', vagas:'', situacao:'autorizado', previsao:'2026', dataEdital:'', dataProva:'', link:'', obs:'Concurso já autorizado pelo tribunal — fase mais avançada que só estudo.'},
+      {nome:'TRT-4 — servidores (RS)', orgao:'Tribunal Regional do Trabalho da 4ª Região', cargo:'Técnico/Analista Judiciário', local:'RS', banca:'', salario:'', vagas:'', situacao:'comissao', previsao:'2026', dataEdital:'', dataProva:'', link:'', obs:'Comissão organizadora já formada (nov/2025), presidida por desembargadora.'},
+    ];
+    const existingNomes3 = DB.concursos.map(c=>(c.nome||'').toLowerCase());
+    newConcursos3.forEach(nc=>{
+      if(!existingNomes3.includes(nc.nome.toLowerCase())){
+        DB.concursos.push({id:uid(), ...nc});
+      }
+    });
+    DB.settings.iaraConcursosV3 = true;
+    await saveKey('concursos');
+    await saveKey('settings');
+  }
   if(!DB.seeded){ DB.seeded = true; await saveKey('seeded'); }
 }
 async function saveKey(k){
