@@ -4410,15 +4410,31 @@ function openMemoryCardGame(){
 
 /* ---- Jogo 2: Sequência (Simon) ---- */
 const SEQUENCE_DIFFICULTY = {
-  facil:{colors:4, startMs:550, minMs:350, label:'Fácil'},
-  medio:{colors:4, startMs:420, minMs:250, label:'Médio'},
-  dificil:{colors:6, startMs:340, minMs:160, label:'Difícil'},
+  facil:{colors:4, startMs:650, minMs:420, label:'Fácil'},
+  medio:{colors:4, startMs:480, minMs:300, label:'Médio'},
+  dificil:{colors:6, startMs:380, minMs:200, label:'Difícil'},
 };
 const SEQUENCE_ALL_COLORS = [
-  {key:'r', color:'#ef4f78'}, {key:'b', color:'#5a9bec'},
-  {key:'g', color:'#2fb380'}, {key:'y', color:'#e0a233'},
-  {key:'p', color:'#8b6fea'}, {key:'o', color:'#e07a3a'},
+  {key:'r', color:'#ef4f78', dark:'#c22a54', freq:392.0, shape:'●'},
+  {key:'b', color:'#5a9bec', dark:'#2d6fc4', freq:329.6, shape:'▲'},
+  {key:'g', color:'#2fb380', dark:'#1c8560', freq:261.6, shape:'■'},
+  {key:'y', color:'#e0a233', dark:'#b87d1a', freq:440.0, shape:'★'},
+  {key:'p', color:'#8b6fea', dark:'#6647c9', freq:293.7, shape:'♦'},
+  {key:'o', color:'#e07a3a', dark:'#bd5a1e', freq:349.2, shape:'✚'},
 ];
+function sequenceBeep(freq, durMs){
+  try{
+    const ctx = ensureAudioCtx();
+    const osc = ctx.createOscillator(); const g = ctx.createGain();
+    osc.type='sine'; osc.frequency.value=freq;
+    g.gain.value=0.001;
+    osc.connect(g).connect(ctx.destination);
+    const now = ctx.currentTime;
+    g.gain.exponentialRampToValueAtTime(0.22, now+0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, now+durMs/1000);
+    osc.start(now); osc.stop(now+durMs/1000+0.02);
+  }catch(e){}
+}
 function openSequenceGame(){
   const body = el('div',{});
   body.appendChild(el('div',{class:'muted',style:'text-align:center;margin-bottom:10px;'},'Escolha a dificuldade:'));
@@ -4430,28 +4446,42 @@ function openSequenceGame(){
     const COLORS = SEQUENCE_ALL_COLORS.slice(0, cfg.colors);
     let sequence = [], playerPos = 0, level = 0, accepting = false;
 
-    const padsWrap = el('div',{style:`display:grid;grid-template-columns:repeat(${cfg.colors<=4?2:3},1fr);gap:10px;max-width:${cfg.colors<=4?220:320}px;margin:0 auto;`});
+    const cols = cfg.colors<=4?2:3;
+    const padsWrap = el('div',{style:`display:grid;grid-template-columns:repeat(${cols},1fr);gap:14px;max-width:${cols===2?280:380}px;margin:0 auto;`});
     const pads = {};
     COLORS.forEach(c=>{
-      const pad = el('button',{type:'button', style:`aspect-ratio:1;border-radius:14px;border:none;background:${c.color};opacity:.55;cursor:pointer;`, onclick:()=>handlePadClick(c.key)});
+      const pad = el('button',{type:'button', style:`aspect-ratio:1;border-radius:18px;border:none;background:${c.color};opacity:.5;cursor:pointer;
+        font-size:28px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.85);
+        box-shadow:inset 0 -4px 0 rgba(0,0,0,.15);transition:transform .08s ease,opacity .08s ease;`,
+        onclick:()=>handlePadClick(c.key)}, c.shape);
       pads[c.key]=pad; padsWrap.appendChild(pad);
     });
-    const statusLine = el('div',{class:'muted',style:'text-align:center;margin:12px 0;'}, `Dificuldade: ${cfg.label} — preparando...`);
+    const levelBadge = el('div',{style:'text-align:center;margin:14px 0 4px;'},[
+      el('span',{class:'badge b-gold',style:'font-size:15px;padding:6px 16px;'},'Nível 0')
+    ]);
+    const statusLine = el('div',{class:'muted',style:'text-align:center;margin-bottom:10px;font-size:13.5px;'}, `Dificuldade: ${cfg.label} — preparando...`);
     const resultLine = el('div',{style:'text-align:center;margin-top:10px;'});
 
+    function litStyle(c,on){ return `aspect-ratio:1;border-radius:18px;border:none;background:${on?c.dark:c.color};opacity:${on?1:.5};cursor:pointer;
+        font-size:28px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.9);
+        box-shadow:inset 0 -4px 0 rgba(0,0,0,.15);transition:transform .08s ease,opacity .08s ease;transform:scale(${on?1.06:1});`; }
     function flashMs(){ return Math.max(cfg.minMs, cfg.startMs - level*15); }
-    function flashPad(key, ms){
+    function flashPad(key, ms, playSound){
+      const c = COLORS.find(x=>x.key===key);
       return new Promise(res=>{
-        pads[key].style.opacity='1';
-        setTimeout(()=>{ pads[key].style.opacity='.55'; setTimeout(res, 130); }, ms);
+        pads[key].style.cssText = litStyle(c,true);
+        if(playSound) sequenceBeep(c.freq, ms/1000);
+        setTimeout(()=>{ pads[key].style.cssText = litStyle(c,false); setTimeout(res, Math.max(90, ms*0.28)); }, ms);
       });
     }
     async function playSequence(){
       accepting=false;
-      statusLine.textContent = `Nível ${level} — observe...`;
-      for(const key of sequence){ await flashPad(key, flashMs()); }
+      levelBadge.innerHTML=''; levelBadge.appendChild(el('span',{class:'badge b-gold',style:'font-size:15px;padding:6px 16px;'},`Nível ${level}`));
+      statusLine.textContent = '👀 Observe a sequência...';
+      await new Promise(r=>setTimeout(r,400));
+      for(const key of sequence){ await flashPad(key, flashMs(), true); }
       accepting=true; playerPos=0;
-      statusLine.textContent = `Nível ${level} — sua vez!`;
+      statusLine.textContent = '👉 Sua vez! Repita a sequência.';
     }
     function nextRound(){
       level++;
@@ -4460,22 +4490,30 @@ function openSequenceGame(){
     }
     function handlePadClick(key){
       if(!accepting) return;
+      const c = COLORS.find(x=>x.key===key);
+      pads[key].style.cssText = litStyle(c,true);
+      sequenceBeep(c.freq, 0.16);
+      setTimeout(()=>{ if(pads[key]) pads[key].style.cssText = litStyle(c,false); }, 140);
       if(key===sequence[playerPos]){
         playerPos++;
-        if(playerPos===sequence.length){ accepting=false; setTimeout(nextRound, 600); }
+        if(playerPos===sequence.length){ accepting=false; statusLine.textContent='✅ Isso aí! Próximo nível...'; setTimeout(nextRound, 750); }
       } else {
         accepting=false;
+        sequenceBeep(110, 0.35);
         const reached = level-1;
         const performance = clamp(reached*10, 10, 100);
         const isRecord = saveGameRecord('sequence_'+diff, reached, true);
-        statusLine.textContent = `Você errou no nível ${level}. (${cfg.label})`;
+        statusLine.textContent = `❌ Errou no nível ${level}. (${cfg.label})`;
         resultLine.innerHTML='';
         if(isRecord) resultLine.appendChild(el('div',{style:'color:var(--gold);font-weight:700;font-size:12.5px;margin-bottom:6px;'},'🏆 Novo recorde nessa dificuldade!'));
-        resultLine.appendChild(el('div',{style:'font-weight:700;margin-bottom:8px;'}, `Chegou até o nível ${reached}!`));
-        resultLine.appendChild(el('button',{class:'btn btn-gold btn-sm',onclick:()=>{ logGameResult(`Sequência (${cfg.label})`, 5, performance); closeModal(); }},'💾 Registrar resultado'));
+        resultLine.appendChild(el('div',{style:'font-weight:700;margin-bottom:10px;'}, `Chegou até o nível ${reached}!`));
+        const btnRow = el('div',{style:'display:flex;gap:8px;justify-content:center;'});
+        btnRow.appendChild(el('button',{class:'btn btn-gold btn-sm',onclick:()=>{ logGameResult(`Sequência (${cfg.label})`, 5, performance); closeModal(); }},'💾 Registrar resultado'));
+        btnRow.appendChild(el('button',{class:'btn btn-primary btn-sm',onclick:()=>startSequenceGame(diff)},'🔄 Jogar de novo'));
+        resultLine.appendChild(btnRow);
       }
     }
-    body.innerHTML=''; body.appendChild(padsWrap); body.appendChild(statusLine); body.appendChild(resultLine);
+    body.innerHTML=''; body.appendChild(levelBadge); body.appendChild(statusLine); body.appendChild(padsWrap); body.appendChild(resultLine);
     nextRound();
   }
 }
