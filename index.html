@@ -4237,7 +4237,7 @@ function openChessGame(){
   let gameOver = false;
   const startTs = Date.now();
 
-  const boardEl = el('div',{style:'display:grid;grid-template-columns:repeat(8,1fr);width:min(420px,86vw);height:min(420px,86vw);margin:0 auto;border:3px solid var(--ink);border-radius:8px;overflow:hidden;'});
+  const boardEl = el('div',{style:'display:grid;grid-template-columns:repeat(8,1fr);width:min(420px,100%);aspect-ratio:1;margin:0 auto;border:3px solid var(--ink);border-radius:8px;overflow:hidden;box-sizing:border-box;'});
   const statusLine = el('div',{style:'text-align:center;font-weight:700;margin:12px 0 6px;font-size:14.5px;'});
   const capturedLine = el('div',{style:'text-align:center;font-size:18px;min-height:24px;margin-bottom:8px;letter-spacing:2px;'});
 
@@ -4248,7 +4248,7 @@ function openChessGame(){
       const isSel = selected && selected.r===r && selected.c===c;
       const isLegal = legalForSelected.some(m=>m.r===r && m.c===c);
       const p = board[r][c];
-      const sq = el('button',{type:'button', style:`aspect-ratio:1;border:none;font-size:min(7vw,28px);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;
+      const sq = el('button',{type:'button', style:`aspect-ratio:1;border:none;font-size:clamp(20px,6vw,30px);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;
         background:${isSel? '#f0b53e' : isLegal? (dark?'#bfe0c4':'#d9f2dd') : (dark?'#b98a63':'#f0dcc0')};`,
         onclick:()=>handleSquareClick(r,c)
       }, p? CHESS_UNICODE[p.color+p.type] : '');
