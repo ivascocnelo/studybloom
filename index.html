@@ -1283,6 +1283,48 @@ async function loadAll(){
     await saveKey('watchlist');
     await saveKey('settings');
   }
+  // recuperação: recoloca a lista completa (51 títulos), caso algo tenha apagado sem querer
+  if(DB.settings.iaraWatchlistV3!==true && typeof spUser!=='undefined' && spUser && spUser.email==='iara_carmelo@hotmail.com'){
+    const fullWatch = [
+      {title:'Efeito borboleta',type:'filme',watched:true},{title:'Dilemas das redes',type:'filme',watched:true},
+      {title:'O sexto sentido',type:'filme',watched:false},{title:'Inventando Anna',type:'serie',watched:false},
+      {title:'Um pequeno favor',type:'filme',watched:false},{title:'A estrela de Belém',type:'filme',watched:false},
+      {title:'O império da dor',type:'serie',watched:true,platform:'Netflix'},
+      {title:'Por dentro das prisões mais severas do mundo',type:'serie',watched:false,platform:'Netflix'},
+      {title:'Expresso da meia-noite',type:'filme',watched:false},{title:'The Look of Love',type:'filme',watched:false},
+      {title:'Only Murders in the Building',type:'serie',watched:false},{title:'À espera de um milagre',type:'filme',watched:false},
+      {title:'The Following',type:'serie',watched:false},{title:'Locke & Key',type:'serie',watched:false},
+      {title:'Lupin',type:'serie',watched:false},{title:'Breaking Bad',type:'serie',watched:false},
+      {title:'Fragmentado',type:'filme',watched:true},{title:'Nefarious',type:'filme',watched:true},
+      {title:'Um Contratempo',type:'filme',watched:false},{title:'Ilha do Medo',type:'filme',watched:true},
+      {title:'História de um Casamento',type:'filme',watched:false},{title:'O fazendeiro de Deus',type:'filme',watched:false,platform:'Prime'},
+      {title:'Divertida Mente 2',type:'filme',watched:true},{title:'The Chosen',type:'serie',watched:true},
+      {title:'Bridgerton',type:'serie',watched:true},{title:'House of the Dragon 2',type:'serie',watched:true},
+      {title:'Brilho eterno de uma mente sem lembranças',type:'filme',watched:false},{title:'Comer, Rezar, Amar',type:'filme',watched:true},
+      {title:'A Cabana',type:'filme',watched:true},{title:'Infiltrado na Klan',type:'filme',watched:false},
+      {title:'Ainda Estou Aqui',type:'filme',watched:false},{title:'Senna',type:'serie',watched:true},
+      {title:'Zodíaco',type:'filme',watched:true},{title:'Amor da Minha Vida',type:'serie',watched:true},
+      {title:'Moana 2',type:'filme',watched:true},{title:'Mufasa',type:'filme',watched:false},
+      {title:'Star Wars',type:'filme',watched:false,notes:'saga completa'},{title:'Os Miseráveis',type:'livro',watched:false,notes:'filme/livro'},
+      {title:'A Revolução dos Bichos',type:'filme',watched:false,notes:'Animal Farm'},{title:'A Vida é Bela',type:'filme',watched:false,notes:'filme italiano'},
+      {title:'Ruptura',type:'serie',watched:false},{title:'A Substância',type:'filme',watched:false},
+      {title:'Um Sonho de Liberdade',type:'filme',watched:false},{title:'A Viagem',type:'filme',watched:false},
+      {title:'O Problema dos 3 Corpos',type:'filme',watched:false},{title:'Psicose',type:'filme',watched:false},
+      {title:'O Silo',type:'serie',watched:false,platform:'Apple TV/Prime'},{title:'Anos Incríveis',type:'serie',watched:false},
+      {title:'Desperate Housewives',type:'serie',watched:false,platform:'Disney'},
+      {title:'Dark Matter',type:'serie',watched:false,platform:'Apple TV+',notes:'matéria escura'},
+      {title:'Atlas das Nuvens',type:'filme',watched:false},
+    ];
+    const existingTitles5 = (DB.watchlist||[]).map(w=>(w.title||'').toLowerCase());
+    fullWatch.forEach(fw=>{
+      if(!existingTitles5.includes(fw.title.toLowerCase())){
+        DB.watchlist.push({id:uid(), platform:'', notes:'', ...fw});
+      }
+    });
+    DB.settings.iaraWatchlistV3 = true;
+    await saveKey('watchlist');
+    await saveKey('settings');
+  }
   if(!DB.seeded){ DB.seeded = true; await saveKey('seeded'); }
 }
 async function saveKey(k){
