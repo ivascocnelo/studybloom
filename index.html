@@ -5790,28 +5790,67 @@ RENDERERS.filmes = function(main){
   filterRow.appendChild(chip('serie','📺 Séries'));
   main.appendChild(filterRow);
 
+  function starsRow(w){
+    const row = el('div',{style:'display:flex;gap:1px;margin-top:3px;'});
+    for(let i=1;i<=5;i++){
+      const filled = (w.rating||0)>=i;
+      row.appendChild(el('button',{type:'button', title:`${i} estrela${i>1?'s':''}`, style:'background:none;border:none;cursor:pointer;padding:1px;font-size:13px;color:'+(filled?'var(--gold)':'var(--line)'),
+        onclick: async (e)=>{ e.stopPropagation(); w.rating = (w.rating===i)? 0 : i; await saveKey('watchlist'); go('filmes'); }
+      }, filled?'★':'☆'));
+    }
+    return row;
+  }
+  function watchRow(w){
+    const typeMeta = FILME_TYPES[w.type]||FILME_TYPES.filme;
+    return el('div',{style:`display:flex;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid var(--line);opacity:${w.watched?'.85':'1'};`},[
+      el('button',{type:'button', title:'Marcar como assistido/não assistido', onclick: async ()=>{ w.watched=!w.watched; await saveKey('watchlist'); go('filmes'); },
+        style:`width:26px;height:26px;border-radius:50%;border:2px solid ${w.watched?'var(--ok)':'var(--line)'};background:${w.watched?'var(--ok)':'#fff'};color:#fff;font-size:14px;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;`
+      }, w.watched?'✓':''),
+      el('div',{style:'flex:1;min-width:0;'},[
+        el('div',{style:`font-weight:600;font-size:14px;${w.watched?'text-decoration:line-through;':''}`}, w.title),
+        el('div',{class:'muted',style:'font-size:11.5px;margin-top:1px;'}, [typeMeta[0]+' '+typeMeta[1], w.platform?' · '+w.platform:'', w.notes?' · '+w.notes:''].join('')),
+        w.watched? starsRow(w) : null
+      ]),
+      el('button',{class:'btn btn-ghost btn-sm',onclick:()=>openFilmeForm(w)},'✎'),
+      el('button',{class:'btn-x',onclick:()=>{ if(confirm('Remover da lista?')){ DB.watchlist=DB.watchlist.filter(x=>x.id!==w.id); saveKey('watchlist'); go('filmes'); } }},'✕')
+    ]);
+  }
+
   let visible = DB.watchlist;
   if(filmesFilter==='naovisto') visible = visible.filter(w=>!w.watched);
   else if(filmesFilter==='visto') visible = visible.filter(w=>w.watched);
   else if(filmesFilter==='filme') visible = visible.filter(w=>w.type==='filme');
   else if(filmesFilter==='serie') visible = visible.filter(w=>w.type==='serie');
 
+  if(filmesFilter==='todos'){
+    const filmesList = visible.filter(w=>w.type==='filme');
+    const seriesList = visible.filter(w=>w.type==='serie');
+    const livrosList = visible.filter(w=>w.type!=='filme' && w.type!=='serie');
+    if(filmesList.length){
+      main.appendChild(el('div',{class:'card-title',style:'margin:6px 0 8px;'},'🎬 Filmes'));
+      const c1 = el('div',{class:'card',style:'padding:8px 0;margin-bottom:16px;'});
+      filmesList.forEach(w=>c1.appendChild(watchRow(w)));
+      main.appendChild(c1);
+    }
+    if(seriesList.length){
+      main.appendChild(el('div',{class:'card-title',style:'margin:6px 0 8px;'},'📺 Séries'));
+      const c2 = el('div',{class:'card',style:'padding:8px 0;margin-bottom:16px;'});
+      seriesList.forEach(w=>c2.appendChild(watchRow(w)));
+      main.appendChild(c2);
+    }
+    if(livrosList.length){
+      main.appendChild(el('div',{class:'card-title',style:'margin:6px 0 8px;'},'📖 Outros'));
+      const c3 = el('div',{class:'card',style:'padding:8px 0;'});
+      livrosList.forEach(w=>c3.appendChild(watchRow(w)));
+      main.appendChild(c3);
+    }
+    if(!visible.length) main.appendChild(el('div',{class:'card'},[el('div',{class:'empty'},'Nada aqui com esse filtro.')]));
+    return;
+  }
+
   const listCard = el('div',{class:'card',style:'padding:8px 0;'});
   if(!visible.length){ listCard.appendChild(el('div',{class:'empty'},'Nada aqui com esse filtro.')); }
-  visible.forEach(w=>{
-    const typeMeta = FILME_TYPES[w.type]||FILME_TYPES.filme;
-    listCard.appendChild(el('div',{style:`display:flex;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid var(--line);opacity:${w.watched?'.6':'1'};`},[
-      el('button',{type:'button', title:'Marcar como assistido/não assistido', onclick: async ()=>{ w.watched=!w.watched; await saveKey('watchlist'); go('filmes'); },
-        style:`width:26px;height:26px;border-radius:50%;border:2px solid ${w.watched?'var(--ok)':'var(--line)'};background:${w.watched?'var(--ok)':'#fff'};color:#fff;font-size:14px;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;`
-      }, w.watched?'✓':''),
-      el('div',{style:'flex:1;min-width:0;'},[
-        el('div',{style:`font-weight:600;font-size:14px;${w.watched?'text-decoration:line-through;':''}`}, w.title),
-        el('div',{class:'muted',style:'font-size:11.5px;margin-top:1px;'}, [typeMeta[0]+' '+typeMeta[1], w.platform?' · '+w.platform:'', w.notes?' · '+w.notes:''].join(''))
-      ]),
-      el('button',{class:'btn btn-ghost btn-sm',onclick:()=>openFilmeForm(w)},'✎'),
-      el('button',{class:'btn-x',onclick:()=>{ if(confirm('Remover da lista?')){ DB.watchlist=DB.watchlist.filter(x=>x.id!==w.id); saveKey('watchlist'); go('filmes'); } }},'✕')
-    ]));
-  });
+  visible.forEach(w=> listCard.appendChild(watchRow(w)));
   main.appendChild(listCard);
 };
 
