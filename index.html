@@ -1265,6 +1265,24 @@ async function loadAll(){
     await saveKey('concursos');
     await saveKey('settings');
   }
+  // atualização da lista de filmes/séries: 2 títulos novos + status do Fragmentado
+  if(DB.settings.iaraWatchlistV2!==true && typeof spUser!=='undefined' && spUser && spUser.email==='iara_carmelo@hotmail.com'){
+    const newWatch = [
+      {title:'Dark Matter', type:'serie', watched:false, platform:'Apple TV+', notes:'matéria escura'},
+      {title:'Atlas das Nuvens', type:'filme', watched:false, platform:'', notes:''},
+    ];
+    const existingTitles4 = (DB.watchlist||[]).map(w=>(w.title||'').toLowerCase());
+    newWatch.forEach(nw=>{
+      if(!existingTitles4.includes(nw.title.toLowerCase())){
+        DB.watchlist.push({id:uid(), ...nw});
+      }
+    });
+    const frag = (DB.watchlist||[]).find(w=>(w.title||'').toLowerCase()==='fragmentado');
+    if(frag) frag.watched = true;
+    DB.settings.iaraWatchlistV2 = true;
+    await saveKey('watchlist');
+    await saveKey('settings');
+  }
   if(!DB.seeded){ DB.seeded = true; await saveKey('seeded'); }
 }
 async function saveKey(k){
