@@ -5791,10 +5791,10 @@ RENDERERS.filmes = function(main){
   main.appendChild(filterRow);
 
   function starsRow(w){
-    const row = el('div',{style:'display:flex;gap:1px;margin-top:3px;'});
+    const row = el('div',{style:'display:flex;gap:2px;margin-top:6px;'});
     for(let i=1;i<=5;i++){
       const filled = (w.rating||0)>=i;
-      row.appendChild(el('button',{type:'button', title:`${i} estrela${i>1?'s':''}`, style:'background:none;border:none;cursor:pointer;padding:1px;font-size:13px;color:'+(filled?'var(--gold)':'var(--line)'),
+      row.appendChild(el('button',{type:'button', title:`${i} estrela${i>1?'s':''}`, style:'background:none;border:none;cursor:pointer;padding:3px;font-size:22px;line-height:1;color:'+(filled?'var(--gold)':'var(--line)'),
         onclick: async (e)=>{ e.stopPropagation(); w.rating = (w.rating===i)? 0 : i; await saveKey('watchlist'); go('filmes'); }
       }, filled?'★':'☆'));
     }
