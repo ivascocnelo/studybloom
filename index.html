@@ -572,6 +572,33 @@ input,textarea,select{font-family:inherit;}
 @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
 @keyframes jumpHighlight{0%{box-shadow:0 0 0 0 rgba(239,79,120,.55); background:rgba(239,79,120,.16);}60%{box-shadow:0 0 0 10px rgba(239,79,120,0); background:rgba(239,79,120,.16);}100%{box-shadow:0 0 0 0 rgba(239,79,120,0); background:transparent;}}
 .jump-highlight{animation:jumpHighlight 1.8s ease-out 2;}
+.ent-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px;}
+.ent-card{position:relative;background:var(--card,#fff);border-radius:18px;padding:16px 16px 14px 22px;box-shadow:0 4px 16px rgba(122,92,224,.09);border:1px solid var(--line);overflow:hidden;transition:transform .15s ease,box-shadow .15s ease;}
+.ent-card:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(239,79,120,.16);}
+.ent-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:7px;background:var(--ent-accent,#7a5ce0);}
+.ent-top{display:flex;gap:14px;align-items:flex-start;}
+.ent-main{flex:1;min-width:0;}
+.ent-org{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:2px 9px;border-radius:999px;background:var(--ent-accent-soft,#efe9ff);color:var(--ent-accent,#7a5ce0);margin-bottom:6px;}
+.ent-title{font-weight:800;font-size:15.5px;line-height:1.3;overflow-wrap:anywhere;}
+.ent-chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0;}
+.ent-chip{font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:999px;background:var(--paper-2,#fbe2ea);color:#6b4a5e;}
+.ent-date{flex:0 0 66px;text-align:center;border-radius:16px;background:linear-gradient(160deg,#fff0f5,#f1ebff);padding:9px 4px 8px;border:1px solid #f3dce8;}
+.ent-date .w{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#a07a92;}
+.ent-date .d{font-size:28px;font-weight:800;line-height:1.05;color:var(--forest-2,#d63d64);}
+.ent-date .m{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8a5a78;}
+.ent-date .t{font-size:11px;font-weight:800;margin-top:4px;color:var(--plum,#7a5ce0);}
+.ent-date.none{background:var(--paper-2,#fbe2ea);opacity:.75;}
+.ent-date.none .d{font-size:20px;color:#b79aa9;}
+.ent-count{display:inline-block;font-size:11px;font-weight:800;margin-top:6px;padding:2px 8px;border-radius:999px;}
+.ent-status{margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.ent-status select{border:none;border-radius:999px;padding:7px 12px;font-size:12.5px;font-weight:800;cursor:pointer;max-width:100%;}
+.ent-info{font-size:13px;margin-top:10px;color:#4a3a45;}
+.ent-info .muted{font-weight:700;}
+.ent-obs{margin-top:10px;font-size:12.5px;line-height:1.45;padding:9px 11px;border-radius:12px;background:var(--paper,#eeecf6);color:#5b4a56;white-space:pre-wrap;}
+.ent-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:13px;padding-top:12px;border-top:1px dashed var(--line);align-items:center;}
+.ent-actions .spacer{flex:1;}
+.ent-card.done .ent-title{text-decoration:line-through;color:#8d7a86;}
+.ent-card.done{opacity:.72;}
 .account-chip{margin:0 14px 18px;padding:10px 12px;border-radius:14px;background:var(--paper-2);display:flex;align-items:center;gap:9px;font-size:12px;color:var(--muted);font-weight:600;}
 .account-chip .ac-dot{width:7px;height:7px;border-radius:50%;background:var(--ok);flex-shrink:0;}
 .account-chip .ac-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -4070,7 +4097,7 @@ function renderEntrevistas(main){
     main.appendChild(hdr);
     if(!l.length){ main.appendChild(el('div',{class:'muted',style:'font-size:12.5px;padding:2px 4px 6px;'},'Nada por aqui por enquanto.')); return; }
     if(!open) return;
-    const grid = el('div',{class:'grid g2'});
+    const grid = el('div',{class:'ent-grid'});
     l.forEach(e=> grid.appendChild(entrevistaCard(e,fase)));
     main.appendChild(grid);
   });
@@ -4078,41 +4105,68 @@ function renderEntrevistas(main){
 }
 function entrevistaCard(e,fase){
   const done = fase==='finalizada';
-  const card = el('div',{id:'row-entrevista-'+e.id, class:'card', style: done?'opacity:.65;':''});
+  const ACC = {andamento:['#f0a92e','#fff3d6'], proxima:['#7a5ce0','#efe9ff'], finalizada:['#43b581','#dff7ea']}[fase] || ['#7a5ce0','#efe9ff'];
+  const card = el('div',{id:'row-entrevista-'+e.id, class:'ent-card'+(done?' done':''), style:`--ent-accent:${ACC[0]};--ent-accent-soft:${ACC[1]};`});
   const dleft = e.data? daysUntil(e.data) : null;
-  card.appendChild(el('div',{class:'card-head'},[
-    el('div',{},[
-      el('div',{class:'card-title',style: done?'text-decoration:line-through;':''}, `${e.orgao||''}${e.orgao&&e.unidade?' — ':''}${e.unidade||''}`),
-      el('div',{class:'muted'}, [e.cidade, e.modalidade==='presencial'?'Presencial':'Online'].filter(Boolean).join(' · '))
-    ])
+
+  // data em "quadradinho de calendário"
+  let dateTile;
+  if(e.data){
+    const dt = new Date(e.data+'T00:00:00');
+    const wd = dt.toLocaleDateString('pt-BR',{weekday:'short'}).replace('.','');
+    const mo = dt.toLocaleDateString('pt-BR',{month:'short'}).replace('.','');
+    dateTile = el('div',{class:'ent-date'},[
+      el('div',{class:'w'}, wd),
+      el('div',{class:'d'}, String(dt.getDate()).padStart(2,'0')),
+      el('div',{class:'m'}, mo),
+      e.hora? el('div',{class:'t'}, '🕒 '+e.hora) : null
+    ]);
+  } else {
+    dateTile = el('div',{class:'ent-date none'},[ el('div',{class:'w'},'data'), el('div',{class:'d'},'—'), el('div',{class:'m'},'a definir') ]);
+  }
+
+  const title = e.unidade || e.orgao || 'Entrevista';
+  const chips = [];
+  if(e.cidade) chips.push(el('span',{class:'ent-chip'},'📍 '+e.cidade));
+  chips.push(el('span',{class:'ent-chip'}, e.modalidade==='presencial'? '🏢 Presencial' : '💻 Online'));
+
+  card.appendChild(el('div',{class:'ent-top'},[
+    el('div',{class:'ent-main'},[
+      e.orgao? el('span',{class:'ent-org'}, e.orgao) : null,
+      el('div',{class:'ent-title'}, title),
+      el('div',{class:'ent-chips'}, chips),
+    ]),
+    dateTile
   ]));
-  const sel = el('select',{style:'font-size:12.5px;padding:5px 8px;margin-bottom:8px;max-width:100%;'});
+
+  // status colorido + contagem regressiva
+  const STC = {convite:['#f1eef4','#6b5a73'], agendada:['#efe9ff','#5a3fc0'], feita:['#fff3d6','#9a6a00'], aprovada:['#dff7ea','#1f7a4d'], reprovada:['#ffe1e6','#b3263f']}[e.status] || ['#f1eef4','#6b5a73'];
+  const sel = el('select',{style:`background:${STC[0]};color:${STC[1]};`});
   ENTREVISTA_STATUS.forEach(([v,l])=> sel.appendChild(el('option',{value:v, selected:e.status===v?'selected':undefined}, l)));
   sel.addEventListener('change', async ()=>{ e.status=sel.value; e.fase=''; if(sel.value==='aprovada'||sel.value==='reprovada') e.riscada=false; await saveKey('entrevistas'); syncEntrevistaToAgenda(e); go('provas'); });
-  card.appendChild(sel);
-  if(e.data){
-    const when = `📅 ${fmtDate(e.data)}${e.hora?' às '+e.hora:''}`;
-    const cd = dleft===null||done? null : (dleft<0? 'já passou' : dleft===0? 'HOJE' : dleft===1? 'amanhã' : `em ${dleft} dias`);
-    card.appendChild(el('div',{style:'display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;'},[
-      el('span',{class:'badge b-plum'}, when),
-      cd? el('span',{class:'badge '+(dleft!==null&&dleft>=0&&dleft<=1?'b-red':'b-gold')}, cd) : null
-    ]));
-  } else {
-    card.appendChild(el('div',{class:'muted',style:'margin-bottom:8px;'},'Data ainda não definida.'));
+  const statusRow = el('div',{class:'ent-status'},[sel]);
+  if(e.data && !done && dleft!==null){
+    const urgent = dleft>=0 && dleft<=1;
+    const txt = dleft<0? 'já passou' : dleft===0? 'É HOJE!' : dleft===1? 'amanhã' : `em ${dleft} dias`;
+    statusRow.appendChild(el('span',{class:'ent-count',style: urgent? 'background:#ffe1e6;color:#b3263f;' : 'background:#fff3d6;color:#9a6a00;'}, '⏳ '+txt));
   }
-  if(e.entrevistador) card.appendChild(el('div',{style:'font-size:13px;margin-bottom:6px;'},[el('span',{class:'muted'},'Com: '), e.entrevistador]));
-  if(e.obs) card.appendChild(el('div',{class:'muted',style:'margin-bottom:8px;white-space:pre-wrap;'}, e.obs));
-  const btnRow = el('div',{style:'display:flex;gap:8px;flex-wrap:wrap;'});
+  card.appendChild(statusRow);
+
+  if(e.entrevistador) card.appendChild(el('div',{class:'ent-info'},[el('span',{class:'muted'},'👤 Com: '), e.entrevistador]));
+  if(e.obs) card.appendChild(el('div',{class:'ent-obs'}, e.obs));
+
+  const actions = el('div',{class:'ent-actions'});
   if(e.link){
     const isUrl = /^https?:\/\//i.test(e.link);
-    btnRow.appendChild(isUrl? el('a',{href:e.link,target:'_blank',rel:'noopener',class:'btn btn-primary btn-sm'},'🔗 Entrar / abrir') : el('span',{class:'badge b-grey'}, '📍 '+e.link));
+    actions.appendChild(isUrl? el('a',{href:e.link,target:'_blank',rel:'noopener',class:'btn btn-primary btn-sm',style:'text-decoration:none;'},'🔗 Entrar na reunião') : el('span',{class:'ent-chip'}, '📍 '+e.link));
   }
-  btnRow.appendChild(done
+  actions.appendChild(el('span',{class:'spacer'}));
+  actions.appendChild(done
     ? el('button',{class:'btn btn-ghost btn-sm',title:'Voltar para Em andamento',onclick:async()=>{ e.riscada=false; e.fase=''; if(entrevistaFase(e)==='finalizada') e.fase='andamento'; await saveKey('entrevistas'); syncEntrevistaToAgenda(e); go('provas'); }},'↩ Reabrir')
     : el('button',{class:'btn btn-ghost btn-sm',title:'Riscar (mover para Finalizadas)',onclick:async()=>{ e.riscada=true; e.fase=''; await saveKey('entrevistas'); syncEntrevistaToAgenda(e); go('provas'); }},'✓ Riscar'));
-  btnRow.appendChild(el('button',{class:'btn btn-ghost btn-sm',onclick:()=>openEntrevistaForm(e)},'✎ Editar'));
-  btnRow.appendChild(el('button',{class:'btn-x',onclick:()=>{ if(confirm('Excluir esta entrevista? (o lembrete na Agenda também some)')){ DB.entrevistas=DB.entrevistas.filter(x=>x.id!==e.id); saveKey('entrevistas'); removeEntrevistaFromAgenda(e.id); go('provas'); } }},'✕'));
-  card.appendChild(btnRow);
+  actions.appendChild(el('button',{class:'btn btn-ghost btn-sm',title:'Editar',onclick:()=>openEntrevistaForm(e)},'✎ Editar'));
+  actions.appendChild(el('button',{class:'btn-x',title:'Excluir',onclick:()=>{ if(confirm('Excluir esta entrevista? (o lembrete na Agenda também some)')){ DB.entrevistas=DB.entrevistas.filter(x=>x.id!==e.id); saveKey('entrevistas'); removeEntrevistaFromAgenda(e.id); go('provas'); } }},'✕'));
+  card.appendChild(actions);
   return card;
 }
 function openEntrevistaForm(e){
