@@ -570,6 +570,8 @@ input,textarea,select{font-family:inherit;}
 .avatar-zoomable{cursor:zoom-in;transition:transform .18s ease,box-shadow .18s ease;}
 .avatar-zoomable:hover{transform:scale(1.05);box-shadow:0 8px 24px rgba(91,87,217,.35);}
 @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+@keyframes jumpHighlight{0%{box-shadow:0 0 0 0 rgba(239,79,120,.55); background:rgba(239,79,120,.16);}60%{box-shadow:0 0 0 10px rgba(239,79,120,0); background:rgba(239,79,120,.16);}100%{box-shadow:0 0 0 0 rgba(239,79,120,0); background:transparent;}}
+.jump-highlight{animation:jumpHighlight 1.8s ease-out 2;}
 .account-chip{margin:0 14px 18px;padding:10px 12px;border-radius:14px;background:var(--paper-2);display:flex;align-items:center;gap:9px;font-size:12px;color:var(--muted);font-weight:600;}
 .account-chip .ac-dot{width:7px;height:7px;border-radius:50%;background:var(--ok);flex-shrink:0;}
 .account-chip .ac-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -757,6 +759,7 @@ let DB = {
   simulados: [], // {id,date,durationMin,elapsedSec,subjects:[{subjectId,total,correct}],totalQuestions,totalCorrect}
   spotifyAuth: null, // {clientId,accessToken,refreshToken,expiresAt}
   gameScores: {}, // {memory_facil:12, sequence_dificil:7, words_medio:87, ...}
+  entrevistas: [], // {id,provaId,orgao,unidade,cidade,data,hora,modalidade,link,entrevistador,status,fase,riscada,obs}
   provasEstagio: [], // {id,lugar,cidade,inscricaoAte,inscrito,edital,dataProva,horaProva,modalidade,teletrabalho,dataFinal,bolsa,colocacao,resultado,link,obs}
   desabafos: [], // {id,date,ts,text,mood}
   watchlist: [], // {id,title,type,watched,platform,notes}
@@ -779,7 +782,7 @@ let DB = {
   seeded:false
 };
 
-const KEYS = ['subjects','studySessions','questionSessions','goals','concursos','provasEstagio','desabafos','watchlist','errorNotes','flashcards','books','brainLog','meditationLog','sleepLog','simulados','spotifyAuth','gameScores','videoBlocks','videos','mantras','lectioDraft','lectioHistory','prayerToday','prayerHistory','events','quickNotes','profile','liturgyByDate','gospelCache','gospelFavorites','achievementsSeen','settings','seeded'];
+const KEYS = ['subjects','studySessions','questionSessions','goals','concursos','provasEstagio','entrevistas','desabafos','watchlist','errorNotes','flashcards','books','brainLog','meditationLog','sleepLog','simulados','spotifyAuth','gameScores','videoBlocks','videos','mantras','lectioDraft','lectioHistory','prayerToday','prayerHistory','events','quickNotes','profile','liturgyByDate','gospelCache','gospelFavorites','achievementsSeen','settings','seeded'];
 
 /* ---------------------------------------------------------
    STORAGE LAYER
@@ -1146,6 +1149,7 @@ async function loadAll(){
       if(raw!==null && raw!==undefined) DB[k] = JSON.parse(raw);
     }catch(e){ /* key not found yet or corrupted, keep default */ }
   }
+  if(!Array.isArray(DB.entrevistas)) DB.entrevistas = [];
   if(DB.settings.userName===undefined) DB.settings.userName='';
   if(!DB.settings.appLock) DB.settings.appLock = {enabled:false, pinHash:'', pinLength:0, hint:''};
   if(DB.settings.toughLoveMode===undefined) DB.settings.toughLoveMode = true;
@@ -2401,19 +2405,26 @@ const Timer = {
 /* =========================================================
    DASHBOARD
    ========================================================= */
+let highlightTargetId = null;
 function buildUpcomingExamsBanner(){
   const today = todayISO();
   const inDays = (dateStr)=> dateStr? Math.round((new Date(dateStr+'T00:00:00')-new Date(today+'T00:00:00'))/86400000) : null;
   const items = [];
   (DB.provasEstagio||[]).forEach(p=>{
+    if(provaFase(p)==='finalizada') return;
     const dp = inDays(p.dataProva);
-    if(dp!==null && dp>=0 && dp<=7) items.push({days:dp, icon:'✍️', label:`${p.orgao} — ${truncate(p.unidade,42)}`, kind:'Prova', tab:'provas'});
+    if(dp!==null && dp>=0 && dp<=7) items.push({days:dp, icon:'✍️', label:`${p.orgao} — ${truncate(p.unidade,42)}`, kind:'Prova', tab:'provas', sub:'provas', id:p.id});
     const di = inDays(p.inscricaoAte);
-    if(di!==null && di>=0 && di<=5 && !p.inscrito) items.push({days:di, icon:'📋', label:`${p.orgao} — ${truncate(p.unidade,42)}`, kind:'Inscrição', tab:'provas'});
+    if(di!==null && di>=0 && di<=5 && !p.inscrito) items.push({days:di, icon:'📋', label:`${p.orgao} — ${truncate(p.unidade,42)}`, kind:'Inscrição', tab:'provas', sub:'provas', id:p.id});
+  });
+  (DB.entrevistas||[]).forEach(e=>{
+    if(entrevistaFase(e)==='finalizada') return;
+    const de = inDays(e.data);
+    if(de!==null && de>=0 && de<=7) items.push({days:de, icon:'🎤', label:`${e.orgao||''} — ${truncate(e.unidade||'',42)}`, kind:'Entrevista', tab:'provas', sub:'entrevistas', id:e.id});
   });
   (DB.concursos||[]).forEach(c=>{
     const dp = inDays(c.dataProva);
-    if(dp!==null && dp>=0 && dp<=7) items.push({days:dp, icon:'🏛️', label:c.nome, kind:'Prova', tab:'concursos'});
+    if(dp!==null && dp>=0 && dp<=7) items.push({days:dp, icon:'🏛️', label:c.nome, kind:'Prova', tab:'concursos', id:c.id});
   });
   if(!items.length) return null;
   items.sort((a,b)=>a.days-b.days);
@@ -2428,7 +2439,7 @@ function buildUpcomingExamsBanner(){
     const urgent = it.days<=1;
     banner.appendChild(el('div',{style:'display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;cursor:pointer;transition:background .12s;',
       onmouseenter:(e)=>e.currentTarget.style.background='rgba(255,255,255,.6)', onmouseleave:(e)=>e.currentTarget.style.background='transparent',
-      onclick:()=>go(it.tab)
+      onclick:()=>{ highlightTargetId = it.id; if(it.tab==='provas') provasSubTab = it.sub||'provas'; go(it.tab); }
     },[
       el('span',{style:'font-size:16px;'}, it.icon),
       el('div',{style:'flex:1;font-size:13px;'},[
@@ -3728,7 +3739,7 @@ RENDERERS.concursos = function(main){
   DB.concursos.forEach(c=>{
     const sm = statusMeta(c.situacao);
     const dleft = daysUntil(c.dataProva);
-    const card = el('div',{class:'card'});
+    const card = el('div',{id:'row-concurso-'+c.id, class:'card'});
     card.appendChild(el('div',{class:'card-head'},[
       el('div',{},[el('div',{class:'card-title'},c.nome),el('div',{class:'muted'},`${c.orgao||''}${c.cargo?' · '+c.cargo:''}`)]),
       el('span',{class:'status-chip',style:`background:${sm[2]};color:${sm[3]};`},sm[1])
@@ -3756,6 +3767,7 @@ RENDERERS.concursos = function(main){
     grid.appendChild(card);
   });
   main.appendChild(grid);
+  scrollToHighlight('row-concurso-');
 };
 function infoLine(label,val){ return el('div',{style:'font-size:14px;'},[el('span',{class:'muted'},label+': '),el('span',{},val)]); }
 
@@ -3797,10 +3809,53 @@ async function deleteConcurso(id){ DB.concursos = DB.concursos.filter(c=>c.id!==
 /* =========================================================
    PROVAS DE ESTÁGIO / PÓS-GRADUAÇÃO (planilha estilo tabela)
    ========================================================= */
+let provasSubTab = 'provas';
+let provasShowFinal = false;
+let entrevistasShowFinal = false;
+const FASE_META = {
+  andamento:{icon:'🟡', title:'Em andamento', sub:'já me inscrevi — aguardando prova ou resultado'},
+  proxima:{icon:'🔵', title:'Próximas', sub:'ainda vou me inscrever / inscrição ainda não saiu'},
+  finalizada:{icon:'✅', title:'Finalizadas', sub:'já aconteceram ou foram riscadas'}
+};
+function provaFase(p){
+  if(p.fase) return p.fase;
+  if(p.riscada || p.resultado==='nao-passei') return 'finalizada';
+  if(p.dataProva && p.dataProva<todayISO()) return 'finalizada';
+  if(p.inscrito) return 'andamento';
+  return 'proxima';
+}
+function entrevistaFase(e){
+  if(e.fase) return e.fase;
+  if(e.riscada || e.status==='aprovada' || e.status==='reprovada') return 'finalizada';
+  if(e.status==='feita') return 'andamento';
+  return 'proxima';
+}
+function provasTabsBar(){
+  const nP=(DB.provasEstagio||[]).length, nE=(DB.entrevistas||[]).length;
+  const seg = el('div',{class:'seg',style:'margin-bottom:18px;flex-wrap:wrap;'});
+  [['provas','📋 Provas ('+nP+')'],['entrevistas','🎤 Entrevistas ('+nE+')']].forEach(([k,l])=>{
+    seg.appendChild(el('button',{class: provasSubTab===k?'active':'', onclick:()=>{ provasSubTab=k; go('provas'); }}, l));
+  });
+  return seg;
+}
+function faseHeader(fase,count,collapsible,open,onToggle){
+  const m = FASE_META[fase];
+  return el('div',{style:'display:flex;align-items:center;gap:8px;margin:20px 0 8px;flex-wrap:wrap;'+(collapsible?'cursor:pointer;':''), onclick: collapsible? onToggle : undefined},[
+    el('span',{style:'font-size:16px;'}, m.icon),
+    el('div',{style:'font-weight:800;font-size:15px;'}, m.title+' ('+count+')'),
+    el('span',{class:'muted',style:'font-size:12px;'}, m.sub),
+    collapsible? el('span',{style:'margin-left:auto;font-size:12px;font-weight:700;color:var(--forest-2);'}, open?'▲ esconder':'▼ mostrar') : null
+  ]);
+}
 RENDERERS.provas = function(main){
-  main.appendChild(hero('📋 Provas de Estágio', 'Suas seleções de estágio pós-graduação, tipo planilha.',
-    `Cada linha é uma vaga ou processo seletivo que você está acompanhando${userName()?', '+userName():''} — inscrição, prova, bolsa, resultado, tudo num lugar só.`,
-    [el('button',{class:'btn-hero',onclick:()=>openProvaForm(null)},'+ Nova prova')]));
+  const isEnt = provasSubTab==='entrevistas';
+  main.appendChild(hero(isEnt?'🎤 Entrevistas':'📋 Provas de Estágio',
+    isEnt? 'Suas entrevistas de seleção, separadas por fase.' : 'Suas seleções de estágio pós-graduação, tipo planilha.',
+    isEnt? `Aqui ficam as entrevistas${userName()?', '+userName():''} — o que vem aí, o que já fez e está esperando resposta, e o que já acabou.`
+          : `Cada linha é uma vaga ou processo seletivo que você está acompanhando${userName()?', '+userName():''} — as provas descem sozinhas para Finalizadas quando a data passa, ou você risca com o ✓.`,
+    [el('button',{class:'btn-hero',onclick:()=> isEnt? openEntrevistaForm(null) : openProvaForm(null)}, isEnt?'+ Nova entrevista':'+ Nova prova')]));
+  main.appendChild(provasTabsBar());
+  if(isEnt){ renderEntrevistas(main); return; }
 
   if(!DB.provasEstagio.length){
     main.appendChild(el('div',{class:'card'},[el('div',{class:'empty'},[el('div',{class:'big'},'📋'),'Nenhuma prova cadastrada ainda.'])]));
@@ -3820,22 +3875,26 @@ RENDERERS.provas = function(main){
   statsRow.appendChild(statCardPastel2('stat-mint','Aprovações', String(passei), passei>0? '🎉 parabéns!' : 'ainda aguardando'));
   main.appendChild(statsRow);
 
-  const sorted = [...DB.provasEstagio].sort((a,b)=>{
-    const da=a.dataProva||a.inscricaoAte||'9999', db=b.dataProva||b.inscricaoAte||'9999';
-    return da.localeCompare(db);
-  });
+  const groups = {andamento:[], proxima:[], finalizada:[]};
+  DB.provasEstagio.forEach(p=>{ (groups[provaFase(p)]||groups.proxima).push(p); });
+  const byDateAsc = (a,b)=> (a.dataProva||a.inscricaoAte||'9999').localeCompare(b.dataProva||b.inscricaoAte||'9999');
+  groups.andamento.sort(byDateAsc); groups.proxima.sort(byDateAsc);
+  groups.finalizada.sort((a,b)=> (b.dataProva||'').localeCompare(a.dataProva||''));
 
-  const wrap = el('div',{class:'card',style:'padding:0;'});
-  const table = el('table',{class:'provas-table', style:'width:100%;table-layout:fixed;border-collapse:collapse;font-size:12px;'});
-  const colWidths = [6,17,7,8,6,8,7,6,9,8,8,5,5];
-  const colgroup = el('colgroup');
-  colWidths.forEach(w=> colgroup.appendChild(el('col',{style:`width:${w}%;`})));
-  table.appendChild(colgroup);
-  const headRow = el('tr',{style:'background:var(--paper);'});
-  ['Órgão','Vara / Gabinete / Secretaria','Cidade','Inscrição até','Inscrito?','Data da prova','Modalidade','Teletrabalho','Bolsa','Colocação','Resultado','Link',''].forEach(h=>
-    headRow.appendChild(el('th',{style:'text-align:left;padding:8px 6px;font-weight:700;color:#8a5a78;position:sticky;top:0;background:var(--paper);border-bottom:2px solid var(--line);font-size:10.5px;overflow-wrap:break-word;'},h))
-  );
-  table.appendChild(headRow);
+  function makeProvasTable(){
+    const wrap = el('div',{class:'card',style:'padding:0;'});
+    const table = el('table',{class:'provas-table', style:'width:100%;table-layout:fixed;border-collapse:collapse;font-size:12px;'});
+    const colWidths = [6,15,7,8,6,8,7,6,8,8,8,5,8];
+    const colgroup = el('colgroup');
+    colWidths.forEach(w=> colgroup.appendChild(el('col',{style:`width:${w}%;`})));
+    table.appendChild(colgroup);
+    const headRow = el('tr',{style:'background:var(--paper);'});
+    ['Órgão','Vara / Gabinete / Secretaria','Cidade','Inscrição até','Inscrito?','Data da prova','Modalidade','Teletrabalho','Bolsa','Colocação','Resultado','Link',''].forEach(h=>
+      headRow.appendChild(el('th',{style:'text-align:left;padding:8px 6px;font-weight:700;color:#8a5a78;position:sticky;top:0;background:var(--paper);border-bottom:2px solid var(--line);font-size:10.5px;overflow-wrap:break-word;'},h))
+    );
+    table.appendChild(headRow);
+    return {wrap, table};
+  }
 
 function inlineTextCell(value, onSave, opts){
   opts = opts || {};
@@ -3904,12 +3963,16 @@ function inlineSelectCell(value, options, onSave){
   return td;
 }
 
-  sorted.forEach(p=>{
-    const overdueInsc = p.inscricaoAte && !p.inscrito && p.inscricaoAte<today;
-    const tr = el('tr',{style:'border-bottom:1px solid var(--line);'});
+  function addProvaRow(table,p,fase){
+    const done = fase==='finalizada';
+    const overdueInsc = !done && p.inscricaoAte && !p.inscrito && p.inscricaoAte<today;
+    const tr = el('tr',{id:'row-prova-'+p.id, style:'border-bottom:1px solid var(--line);'+(done?'opacity:.62;':'')});
+    const doneBtn = done
+      ? el('button',{class:'btn btn-ghost btn-sm',title:'Voltar para Em andamento',style:'padding:4px 6px;font-size:12px;',onclick:async()=>{ p.riscada=false; p.fase=''; if(provaFase(p)==='finalizada') p.fase='andamento'; await saveKey('provasEstagio'); go('provas'); }},'↩')
+      : el('button',{class:'btn btn-ghost btn-sm',title:'Riscar (mover para Finalizadas)',style:'padding:4px 6px;font-size:12px;',onclick:async()=>{ p.riscada=true; p.fase=''; await saveKey('provasEstagio'); go('provas'); }},'✓');
     const saveField = async (field,val)=>{ p[field]=val; if(field==='inscricaoAte' && val) p.inscricaoNaoSaiu=false; await saveKey('provasEstagio'); if(['inscricaoAte','dataProva','inscrito'].includes(field)) syncProvaToAgenda(p); go('provas'); };
     tr.appendChild(el('td',{style:'padding:7px 5px;overflow-wrap:break-word;'}, [el('span',{class:'badge '+((p.orgao||'').toUpperCase().includes('MP')?'b-red':'b-plum'), style:'font-size:10px;padding:2px 6px;'}, p.orgao||'—')]));
-    tr.appendChild(el('td',{style:'padding:7px 5px;font-weight:700;white-space:normal;overflow-wrap:break-word;line-height:1.35;cursor:pointer;font-size:12px;',onclick:()=>openProvaForm(p),title:'Clique para editar tudo'}, p.unidade));
+    tr.appendChild(el('td',{style:'padding:7px 5px;font-weight:700;white-space:normal;overflow-wrap:break-word;line-height:1.35;cursor:pointer;font-size:12px;'+(done?'text-decoration:line-through;':''),onclick:()=>openProvaForm(p),title:'Clique para editar tudo'}, p.unidade));
     tr.appendChild(inlineTextCell(p.cidade, v=>saveField('cidade',v), {placeholder:'cidade'}));
     tr.appendChild(inlineDateCell(p.inscricaoAte, v=>saveField('inscricaoAte',v), overdueInsc, p.inscricaoNaoSaiu?'📢 Ainda não saiu':null));
     tr.appendChild(inlineSelectCell(p.inscrito, [[true,'Sim','b-green'],[false,'Não','b-grey']], v=>saveField('inscrito', v==='true'||v===true)));
@@ -3921,14 +3984,182 @@ function inlineSelectCell(value, options, onSave){
     tr.appendChild(inlineSelectCell(p.resultado||'aguardando', [['aguardando','Aguardando','b-grey'],['passei','🎉 Passei','b-green'],['nao-passei','Não passei','b-red']], v=>saveField('resultado',v)));
     tr.appendChild(el('td',{style:'padding:7px 5px;overflow-wrap:break-word;'}, p.link? el('a',{href:p.link,target:'_blank',rel:'noopener',class:'card-link',style:'font-size:12px;'},'Abrir ↗') : '—'));
     tr.appendChild(el('td',{style:'padding:7px 4px;white-space:nowrap;'},[
+      doneBtn,
       el('button',{class:'btn btn-ghost btn-sm',style:'padding:4px 6px;font-size:12px;',onclick:()=>openProvaForm(p)},'✎'),
       el('button',{class:'btn-x',style:'font-size:12px;',onclick:()=>{ if(confirm('Excluir esta prova? (os lembretes na Agenda também somem)')){ DB.provasEstagio=DB.provasEstagio.filter(x=>x.id!==p.id); saveKey('provasEstagio'); removeProvaFromAgenda(p.id); go('provas'); } }},'✕')
     ]));
     table.appendChild(tr);
-  });
-  wrap.appendChild(table);
-  main.appendChild(wrap);
+  }
+  function addSection(fase){
+    const list = groups[fase];
+    const collapsible = fase==='finalizada';
+    const open = !collapsible || provasShowFinal;
+    main.appendChild(faseHeader(fase, list.length, collapsible, open, ()=>{ provasShowFinal=!provasShowFinal; go('provas'); }));
+    if(!list.length){ main.appendChild(el('div',{class:'muted',style:'font-size:12.5px;padding:2px 4px 6px;'},'Nada por aqui por enquanto.')); return; }
+    if(!open) return;
+    const t = makeProvasTable();
+    list.forEach(p=>addProvaRow(t.table,p,fase));
+    t.wrap.appendChild(t.table);
+    main.appendChild(t.wrap);
+  }
+  ['andamento','proxima','finalizada'].forEach(addSection);
+  scrollToHighlight('row-prova-');
 };
+function scrollToHighlight(prefix){
+  if(!highlightTargetId) return;
+  const id = highlightTargetId; highlightTargetId = null;
+  setTimeout(()=>{
+    const el2 = document.getElementById(prefix+id);
+    if(!el2) return;
+    el2.scrollIntoView({behavior:'smooth', block:'center'});
+    el2.classList.add('jump-highlight');
+    setTimeout(()=> el2.classList.remove('jump-highlight'), 3700);
+  }, 80);
+}
+
+/* =========================================================
+   ENTREVISTAS (pasta dentro de Provas de Estágio)
+   ========================================================= */
+const ENTREVISTA_STATUS = [
+  ['convite','📩 Aguardando agendamento','b-grey'],
+  ['agendada','📅 Agendada','b-plum'],
+  ['feita','🗣️ Feita — aguardando resposta','b-gold'],
+  ['aprovada','🎉 Aprovada','b-green'],
+  ['reprovada','Não passei','b-red']
+];
+function syncEntrevistaToAgenda(e){
+  DB.events = DB.events.filter(x => x.sourceEntrevistaId !== e.id);
+  if(e.data && entrevistaFase(e)!=='finalizada'){
+    const label = `${e.orgao||''} — ${e.unidade||''}`;
+    DB.events.push({id:uid(), title:`🎤 Entrevista: ${truncate(label,44)}`, date:e.data, time:e.hora||'', category:'concurso', notes:'Entrevista (Provas de Estágio).', done:false, reminder:true, sourceEntrevistaId:e.id});
+  }
+  saveKey('events');
+}
+function removeEntrevistaFromAgenda(id){
+  DB.events = DB.events.filter(x => x.sourceEntrevistaId !== id);
+  saveKey('events');
+}
+function renderEntrevistas(main){
+  const list = DB.entrevistas||[];
+  if(!list.length){
+    main.appendChild(el('div',{class:'card'},[el('div',{class:'empty'},[el('div',{class:'big'},'🎤'),'Nenhuma entrevista cadastrada ainda.',
+      el('div',{style:'margin-top:10px;'},[el('button',{class:'btn btn-primary',onclick:()=>openEntrevistaForm(null)},'+ Nova entrevista')])])]));
+    return;
+  }
+  const today = todayISO();
+  const futuras = list.filter(e=>e.data && e.data>=today && entrevistaFase(e)!=='finalizada').sort((a,b)=>a.data.localeCompare(b.data));
+  const statsRow = el('div',{class:'grid g4',style:'margin-bottom:16px;'});
+  statsRow.appendChild(statCardPastel2('stat-pink','Total', String(list.length), 'entrevistas'));
+  statsRow.appendChild(statCardPastel2('stat-blue','Agendadas', String(list.filter(e=>e.status==='agendada' && entrevistaFase(e)!=='finalizada').length), 'marcadas'));
+  statsRow.appendChild(statCardPastel2('stat-lav','Próxima entrevista', futuras[0]? fmtDate(futuras[0].data) : '—', futuras[0]? truncate(futuras[0].unidade||futuras[0].orgao||'',26) : 'nada agendado'));
+  statsRow.appendChild(statCardPastel2('stat-mint','Aprovações', String(list.filter(e=>e.status==='aprovada').length), 'nas entrevistas'));
+  main.appendChild(statsRow);
+
+  const groups = {andamento:[], proxima:[], finalizada:[]};
+  list.forEach(e=>{ (groups[entrevistaFase(e)]||groups.proxima).push(e); });
+  const asc = (a,b)=> (a.data||'9999').localeCompare(b.data||'9999');
+  groups.andamento.sort(asc); groups.proxima.sort(asc);
+  groups.finalizada.sort((a,b)=> (b.data||'').localeCompare(a.data||''));
+  const SUBS = {andamento:'já fiz — aguardando resposta', proxima:'convite ou data marcada', finalizada:'aprovadas, reprovadas ou riscadas'};
+  ['andamento','proxima','finalizada'].forEach(fase=>{
+    const l = groups[fase];
+    const collapsible = fase==='finalizada';
+    const open = !collapsible || entrevistasShowFinal;
+    const hdr = faseHeader(fase, l.length, collapsible, open, ()=>{ entrevistasShowFinal=!entrevistasShowFinal; go('provas'); });
+    const subEl = hdr.children[2]; if(subEl) subEl.textContent = SUBS[fase];
+    main.appendChild(hdr);
+    if(!l.length){ main.appendChild(el('div',{class:'muted',style:'font-size:12.5px;padding:2px 4px 6px;'},'Nada por aqui por enquanto.')); return; }
+    if(!open) return;
+    const grid = el('div',{class:'grid g2'});
+    l.forEach(e=> grid.appendChild(entrevistaCard(e,fase)));
+    main.appendChild(grid);
+  });
+  scrollToHighlight('row-entrevista-');
+}
+function entrevistaCard(e,fase){
+  const done = fase==='finalizada';
+  const card = el('div',{id:'row-entrevista-'+e.id, class:'card', style: done?'opacity:.65;':''});
+  const dleft = e.data? daysUntil(e.data) : null;
+  card.appendChild(el('div',{class:'card-head'},[
+    el('div',{},[
+      el('div',{class:'card-title',style: done?'text-decoration:line-through;':''}, `${e.orgao||''}${e.orgao&&e.unidade?' — ':''}${e.unidade||''}`),
+      el('div',{class:'muted'}, [e.cidade, e.modalidade==='presencial'?'Presencial':'Online'].filter(Boolean).join(' · '))
+    ])
+  ]));
+  const sel = el('select',{style:'font-size:12.5px;padding:5px 8px;margin-bottom:8px;max-width:100%;'});
+  ENTREVISTA_STATUS.forEach(([v,l])=> sel.appendChild(el('option',{value:v, selected:e.status===v?'selected':undefined}, l)));
+  sel.addEventListener('change', async ()=>{ e.status=sel.value; e.fase=''; if(sel.value==='aprovada'||sel.value==='reprovada') e.riscada=false; await saveKey('entrevistas'); syncEntrevistaToAgenda(e); go('provas'); });
+  card.appendChild(sel);
+  if(e.data){
+    const when = `📅 ${fmtDate(e.data)}${e.hora?' às '+e.hora:''}`;
+    const cd = dleft===null||done? null : (dleft<0? 'já passou' : dleft===0? 'HOJE' : dleft===1? 'amanhã' : `em ${dleft} dias`);
+    card.appendChild(el('div',{style:'display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;'},[
+      el('span',{class:'badge b-plum'}, when),
+      cd? el('span',{class:'badge '+(dleft!==null&&dleft>=0&&dleft<=1?'b-red':'b-gold')}, cd) : null
+    ]));
+  } else {
+    card.appendChild(el('div',{class:'muted',style:'margin-bottom:8px;'},'Data ainda não definida.'));
+  }
+  if(e.entrevistador) card.appendChild(el('div',{style:'font-size:13px;margin-bottom:6px;'},[el('span',{class:'muted'},'Com: '), e.entrevistador]));
+  if(e.obs) card.appendChild(el('div',{class:'muted',style:'margin-bottom:8px;white-space:pre-wrap;'}, e.obs));
+  const btnRow = el('div',{style:'display:flex;gap:8px;flex-wrap:wrap;'});
+  if(e.link){
+    const isUrl = /^https?:\/\//i.test(e.link);
+    btnRow.appendChild(isUrl? el('a',{href:e.link,target:'_blank',rel:'noopener',class:'btn btn-primary btn-sm'},'🔗 Entrar / abrir') : el('span',{class:'badge b-grey'}, '📍 '+e.link));
+  }
+  btnRow.appendChild(done
+    ? el('button',{class:'btn btn-ghost btn-sm',title:'Voltar para Em andamento',onclick:async()=>{ e.riscada=false; e.fase=''; if(entrevistaFase(e)==='finalizada') e.fase='andamento'; await saveKey('entrevistas'); syncEntrevistaToAgenda(e); go('provas'); }},'↩ Reabrir')
+    : el('button',{class:'btn btn-ghost btn-sm',title:'Riscar (mover para Finalizadas)',onclick:async()=>{ e.riscada=true; e.fase=''; await saveKey('entrevistas'); syncEntrevistaToAgenda(e); go('provas'); }},'✓ Riscar'));
+  btnRow.appendChild(el('button',{class:'btn btn-ghost btn-sm',onclick:()=>openEntrevistaForm(e)},'✎ Editar'));
+  btnRow.appendChild(el('button',{class:'btn-x',onclick:()=>{ if(confirm('Excluir esta entrevista? (o lembrete na Agenda também some)')){ DB.entrevistas=DB.entrevistas.filter(x=>x.id!==e.id); saveKey('entrevistas'); removeEntrevistaFromAgenda(e.id); go('provas'); } }},'✕'));
+  card.appendChild(btnRow);
+  return card;
+}
+function openEntrevistaForm(e){
+  const isNew=!e;
+  const f = isNew? {provaId:'',orgao:'',unidade:'',cidade:'',data:'',hora:'',modalidade:'online',link:'',entrevistador:'',status:'convite',fase:'',obs:''} : {...e};
+  const provaSel=el('select',{}); provaSel.appendChild(el('option',{value:''},'— nenhuma (preencher à mão) —'));
+  (DB.provasEstagio||[]).forEach(p=> provaSel.appendChild(el('option',{value:p.id,selected:f.provaId===p.id?'selected':undefined}, `${p.orgao} — ${truncate(p.unidade||'',50)}`)));
+  const orgao=el('input',{value:f.orgao, placeholder:'Ex: TJPR'});
+  const unidade=el('input',{value:f.unidade, placeholder:'Ex: Secretaria da 4ª Vara Criminal'});
+  const cidade=el('input',{value:f.cidade, placeholder:'Ex: Maringá'});
+  provaSel.addEventListener('change', ()=>{
+    const p=(DB.provasEstagio||[]).find(x=>x.id===provaSel.value); if(!p) return;
+    if(!orgao.value) orgao.value=p.orgao||''; if(!unidade.value) unidade.value=p.unidade||''; if(!cidade.value) cidade.value=p.cidade||'';
+  });
+  const data=el('input',{type:'date',value:f.data});
+  const hora=el('input',{type:'time',value:f.hora});
+  const modalidadeSel=el('select',{}); [['online','Online'],['presencial','Presencial']].forEach(([v,l])=>modalidadeSel.appendChild(el('option',{value:v,selected:f.modalidade===v?'selected':undefined},l)));
+  const link=el('input',{value:f.link, placeholder:'Link da reunião (https://...) ou endereço'});
+  const entrevistador=el('input',{value:f.entrevistador, placeholder:'Nome de quem vai entrevistar (opcional)'});
+  const statusSel=el('select',{}); ENTREVISTA_STATUS.forEach(([v,l])=>statusSel.appendChild(el('option',{value:v,selected:f.status===v?'selected':undefined},l)));
+  const faseSel=el('select',{}); [['','Automático (pelo status)'],['proxima','🔵 Próximas'],['andamento','🟡 Em andamento'],['finalizada','✅ Finalizadas']].forEach(([v,l])=>faseSel.appendChild(el('option',{value:v,selected:(f.fase||'')===v?'selected':undefined},l)));
+  const obs=el('textarea',{},f.obs||'');
+  const body=el('div',{},[
+    el('div',{class:'field'},[el('label',{},'Vinculada a qual prova? (opcional)'), provaSel]),
+    el('div',{class:'row'},[el('div',{class:'field',style:'flex:0 0 140px;'},[el('label',{},'Órgão'), orgao]), el('div',{class:'field'},[el('label',{},'Vara / Gabinete / Secretaria'), unidade])]),
+    el('div',{class:'field'},[el('label',{},'Cidade'), cidade]),
+    el('div',{class:'row'},[el('div',{class:'field'},[el('label',{},'Data da entrevista'), data]), el('div',{class:'field'},[el('label',{},'Horário'), hora])]),
+    el('div',{class:'row'},[el('div',{class:'field'},[el('label',{},'Modalidade'), modalidadeSel]), el('div',{class:'field'},[el('label',{},'Status'), statusSel])]),
+    el('div',{class:'field'},[el('label',{},'Link ou endereço'), link]),
+    el('div',{class:'field'},[el('label',{},'Entrevistador(a)'), entrevistador]),
+    el('div',{class:'field'},[el('label',{},'Em qual grupo mostrar?'), faseSel]),
+    el('div',{class:'field'},[el('label',{},'Observações'), obs]),
+  ]);
+  const foot=el('div',{style:'display:flex;gap:8px;'},[
+    el('button',{class:'btn btn-ghost',onclick:closeModal},'✕ Sair sem salvar'),
+    el('button',{class:'btn btn-primary',onclick: async ()=>{
+      if(!unidade.value.trim() && !orgao.value.trim()){ toast('Digite o órgão ou a vara/secretaria.'); return; }
+      const d={provaId:provaSel.value,orgao:orgao.value.trim(),unidade:unidade.value.trim(),cidade:cidade.value.trim(),data:data.value,hora:hora.value,modalidade:modalidadeSel.value,link:link.value.trim(),entrevistador:entrevistador.value.trim(),status:statusSel.value,fase:faseSel.value,riscada:(faseSel.value?false:!!(e&&e.riscada)),obs:obs.value};
+      const target = isNew? {id:uid(),...d} : Object.assign(e,d);
+      if(isNew) DB.entrevistas.push(target);
+      await saveKey('entrevistas');
+      syncEntrevistaToAgenda(target);
+      closeModal(); go('provas'); toast('Entrevista salva.');
+    }},'💾 Salvar')
+  ]);
+  openModal(isNew?'Nova entrevista':'Editar entrevista', body, foot);
+}
 
 const PROVA_ORGAOS = ['TJPR','MP-PR','MPF','TRT','TRF','Outro'];
 function syncProvaToAgenda(prova){
@@ -3948,7 +4179,7 @@ function removeProvaFromAgenda(provaId){
 }
 function openProvaForm(p){
   const isNew=!p;
-  const f = isNew? {orgao:'TJPR',unidade:'',cidade:'',inscricaoAte:'',inscrito:false,inscricaoNaoSaiu:false,edital:'',dataProva:'',horaProva:'',modalidade:'online',teletrabalho:false,dataFinal:'',bolsa:'',colocacao:'',resultado:'aguardando',link:'',obs:''} : {...p};
+  const f = isNew? {orgao:'TJPR',unidade:'',cidade:'',inscricaoAte:'',inscrito:false,inscricaoNaoSaiu:false,fase:'',edital:'',dataProva:'',horaProva:'',modalidade:'online',teletrabalho:false,dataFinal:'',bolsa:'',colocacao:'',resultado:'aguardando',link:'',obs:''} : {...p};
   const orgaoSel=el('select',{}); PROVA_ORGAOS.forEach(o=>orgaoSel.appendChild(el('option',{value:o, selected:f.orgao===o?'selected':undefined}, o)));
   const orgaoOutro=el('input',{value:PROVA_ORGAOS.includes(f.orgao)?'':f.orgao, placeholder:'Digite o órgão', style:PROVA_ORGAOS.includes(f.orgao)||!f.orgao?'display:none;':''});
   if(!PROVA_ORGAOS.includes(f.orgao) && f.orgao){ orgaoSel.value='Outro'; }
@@ -3972,6 +4203,7 @@ function openProvaForm(p){
   const colocacao=el('input',{value:f.colocacao, placeholder:'Ex: 3º lugar, ou "ainda não sei"'});
   const resultadoSel=el('select',{}); [['aguardando','Aguardando'],['passei','🎉 Passei'],['nao-passei','Não passei']].forEach(([v,l])=>resultadoSel.appendChild(el('option',{value:v,selected:f.resultado===v?'selected':undefined},l)));
   const link=el('input',{value:f.link, placeholder:'https://...'});
+  const faseSel=el('select',{}); [['','Automático (pela data e inscrição)'],['proxima','🔵 Próximas'],['andamento','🟡 Em andamento'],['finalizada','✅ Finalizadas']].forEach(([v,l])=>faseSel.appendChild(el('option',{value:v,selected:(f.fase||'')===v?'selected':undefined},l)));
   const obs=el('textarea',{},f.obs);
 
   const body=el('div',{},[
@@ -3993,6 +4225,7 @@ function openProvaForm(p){
     ]),
     el('div',{class:'row'},[el('div',{class:'field'},[el('label',{},'Data final (resultado)'), dataFinal]),el('div',{class:'field'},[el('label',{},'Bolsa (R$)'), bolsa])]),
     el('div',{class:'row'},[el('div',{class:'field'},[el('label',{},'Colocação'), colocacao]),el('div',{class:'field'},[el('label',{},'Resultado'), resultadoSel])]),
+    el('div',{class:'field'},[el('label',{},'Em qual grupo mostrar?'), faseSel]),
     el('div',{class:'field'},[el('label',{},'Observações'), obs]),
   ]);
   const foot=el('div',{style:'display:flex;gap:8px;'},[
@@ -4000,7 +4233,7 @@ function openProvaForm(p){
     el('button',{class:'btn btn-primary',onclick: async ()=>{
       if(!unidade.value.trim()){ toast('Digite a vara/gabinete/secretaria.'); return; }
       const orgaoFinal = orgaoSel.value==='Outro'? (orgaoOutro.value.trim()||'Outro') : orgaoSel.value;
-      const data={orgao:orgaoFinal,unidade:unidade.value.trim(),cidade:cidade.value.trim(),inscricaoAte:naoSaiuChk.checked?'':inscricaoAte.value,inscrito:inscritoChk.checked,inscricaoNaoSaiu:naoSaiuChk.checked,edital:edital.value.trim(),dataProva:dataProva.value,horaProva:horaProva.value,modalidade:modalidadeSel.value,teletrabalho:teletrabalhoChk.checked,dataFinal:dataFinal.value,bolsa:bolsa.value.trim(),colocacao:colocacao.value.trim(),resultado:resultadoSel.value,link:link.value.trim(),obs:obs.value};
+      const data={orgao:orgaoFinal,unidade:unidade.value.trim(),cidade:cidade.value.trim(),inscricaoAte:naoSaiuChk.checked?'':inscricaoAte.value,inscrito:inscritoChk.checked,inscricaoNaoSaiu:naoSaiuChk.checked,fase:faseSel.value,riscada:(faseSel.value?false:!!(p&&p.riscada)),edital:edital.value.trim(),dataProva:dataProva.value,horaProva:horaProva.value,modalidade:modalidadeSel.value,teletrabalho:teletrabalhoChk.checked,dataFinal:dataFinal.value,bolsa:bolsa.value.trim(),colocacao:colocacao.value.trim(),resultado:resultadoSel.value,link:link.value.trim(),obs:obs.value};
       const target = isNew? {id:uid(),...data} : Object.assign(p,data);
       if(isNew) DB.provasEstagio.push(target);
       await saveKey('provasEstagio');
@@ -6917,7 +7150,7 @@ RENDERERS.config = function(main){
     DB = {
       subjects:[], studySessions:[], questionSessions:[],
       goals:{dailyStudyMinutes:180, dailyQuestions:100, weeklyFlashcards:30, minSleepHours:7},
-      concursos:[], provasEstagio:[], desabafos:[], watchlist:[], errorNotes:[],
+      concursos:[], provasEstagio:[], entrevistas:[], desabafos:[], watchlist:[], errorNotes:[],
       flashcards:[], books:[], brainLog:[], meditationLog:[], sleepLog:[], simulados:[],
       spotifyAuth:null, gameScores:{}, videoBlocks:[], videos:[], mantras:[],
       lectioDraft:{passage:'',meditatio:'',oratio:'',contemplatio:'',acao:''}, lectioHistory:[],
@@ -7428,6 +7661,7 @@ function toggleMusicPanel(show){
     const inDays = (dateStr)=> dateStr? Math.round((new Date(dateStr+'T00:00:00')-new Date(today+'T00:00:00'))/86400000) : null;
     const alerts = [];
     (DB.provasEstagio||[]).forEach(p=>{
+      if(provaFase(p)==='finalizada') return;
       const dp = inDays(p.dataProva);
       if(dp!==null && dp>=0 && dp<=5) alerts.push({icon:'✍️', title: dp===0?'Prova é hoje!':`Prova em ${dp} dia${dp>1?'s':''}`, body: `${p.orgao} — ${truncate(p.unidade,50)}`, urgent: dp<=1, tab:'provas'});
       const di = inDays(p.inscricaoAte);
