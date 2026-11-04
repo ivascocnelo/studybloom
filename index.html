@@ -5230,7 +5230,7 @@ let livroGenreFilter = 'todos';
 RENDERERS.livros = function(main){
   main.appendChild(hero('📖 Meus Livros', 'O que você está lendo?',
     'Sua estante pessoal, do seu jeito. Adicione a capa, vá marcando as páginas lidas e dê uma nota clicando nas estrelinhas quando terminar.',
-    [el('button',{class:'btn-hero',onclick:()=>openBookForm(null)},'+ Novo livro')]));
+    [el('button',{class:'btn-hero-outline',onclick:completeBooksFromWeb,title:'Procura autor, gênero, páginas e capa na internet'},'🔍 Completar dados dos livros'), el('button',{class:'btn-hero',onclick:()=>openBookForm(null)},'+ Novo livro')]));
   if(!DB.books.length){ main.appendChild(el('div',{class:'card'},[el('div',{class:'empty'},[el('div',{class:'big'},'📖'),'Sua estante está vazia.'])])); return; }
 
   // resumo geral
@@ -5308,6 +5308,61 @@ function buildStars(b){
   }
   return wrap;
 }
+const BOOK_GENRE_PT = {
+  'fiction':'Ficção','juvenile fiction':'Ficção juvenil','young adult fiction':'Young adult','romance':'Romance',
+  'biography & autobiography':'Biografia','law':'Direito','self-help':'Autoajuda','religion':'Religião','psychology':'Psicologia',
+  'history':'História','philosophy':'Filosofia','poetry':'Poesia','drama':'Teatro','business & economics':'Negócios',
+  'computers':'Tecnologia','science':'Ciência','education':'Educação','humor':'Humor','comics & graphic novels':'HQ',
+  'cooking':'Culinária','health & fitness':'Saúde','social science':'Ciências sociais','political science':'Política',
+  'literary criticism':'Crítica literária','body, mind & spirit':'Espiritualidade','true crime':'Crime real',
+  'literary collections':'Coletânea','juvenile nonfiction':'Infantojuvenil','family & relationships':'Família e relacionamentos',
+  'art':'Arte','music':'Música','travel':'Viagem','nature':'Natureza','mathematics':'Matemática','medical':'Medicina'
+};
+function bookNorm(t){ return (t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim(); }
+function bookGenrePT(cats){
+  if(!cats || !cats.length) return '';
+  const first = String(cats[0]).split('/')[0].trim();
+  return BOOK_GENRE_PT[first.toLowerCase()] || first;
+}
+async function searchBooksOnline(title, author, max){
+  const q = 'intitle:'+title.trim() + (author&&author.trim()? '+inauthor:'+author.trim() : '');
+  const url = 'https://www.googleapis.com/books/v1/volumes?q='+encodeURIComponent(q).replace(/%2B/g,'+')+'&maxResults='+(max||6)+'&printType=books&langRestrict=pt';
+  const r = await fetch(url);
+  if(!r.ok) throw new Error('http '+r.status);
+  const j = await r.json();
+  return (j.items||[]).map(it=>{
+    const v = it.volumeInfo||{};
+    let cover = (v.imageLinks && (v.imageLinks.thumbnail||v.imageLinks.smallThumbnail)) || '';
+    cover = cover.replace(/^http:/,'https:').replace('&edge=curl','');
+    return {title:v.title||'', subtitle:v.subtitle||'', author:(v.authors||[]).join(', '), pages:v.pageCount||0, genre:bookGenrePT(v.categories), cover};
+  }).filter(x=>x.title);
+}
+async function completeBooksFromWeb(){
+  const todo = DB.books.filter(b=> !b.author || !b.genre || !b.cover);
+  if(!todo.length){ toast('Todos os livros já estão completos. ✅'); return; }
+  if(!confirm(`Vou procurar na internet autor, gênero, páginas e capa de ${todo.length} livro(s) que estão incompletos. Só preencho o que estiver vazio. Pode ser?`)) return;
+  toast('Buscando… pode levar alguns segundos. 🔍');
+  let done=0, miss=0, failed=false;
+  for(const b of todo){
+    try{
+      const res = await searchBooksOnline(b.title, b.author, 5);
+      const nb = bookNorm(b.title);
+      const hit = res.find(x=>{ const nx=bookNorm(x.title); return nx===nb || nx.includes(nb) || nb.includes(nx); });
+      if(!hit){ miss++; continue; }
+      let changed=false;
+      if(!b.author && hit.author){ b.author=hit.author; changed=true; }
+      if(!b.genre && hit.genre){ b.genre=hit.genre; changed=true; }
+      if(!b.cover && hit.cover){ b.cover=hit.cover; changed=true; }
+      if(hit.pages && (b.pagesRead||0)===0 && hit.pages!==b.pages){ b.pages=hit.pages; changed=true; }
+      if(changed) done++; else miss++;
+    }catch(e){ failed=true; break; }
+    await new Promise(r=>setTimeout(r,350));
+  }
+  await saveKey('books');
+  go('livros');
+  if(failed) toast('Não consegui buscar agora (sem internet ou limite do serviço). Tenta de novo daqui a pouco.');
+  else toast(`Pronto! ${done} livro(s) completado(s)${miss? ` · ${miss} não encontrado(s) — dá pra editar à mão` : ''}. 📚`, 6000);
+}
 function openBookForm(b){
   const isNew=!b;
   const title=el('input',{value:isNew?'':b.title});
@@ -5335,9 +5390,41 @@ function openBookForm(b){
     reader.readAsDataURL(file);
     fileInp.value='';
   });
+  const resultsBox = el('div',{style:'display:none;margin-top:8px;border:1px solid var(--line);border-radius:12px;overflow:hidden;'});
+  const searchBtn = el('button',{type:'button',class:'btn btn-ghost btn-sm',style:'margin-top:6px;',onclick:async()=>{
+    if(!title.value.trim()){ toast('Digite o título primeiro.'); return; }
+    searchBtn.disabled=true; searchBtn.textContent='🔍 Buscando…';
+    resultsBox.style.display='block'; resultsBox.innerHTML='';
+    try{
+      const res = await searchBooksOnline(title.value, author.value, 6);
+      if(!res.length){ resultsBox.appendChild(el('div',{class:'muted',style:'padding:10px 12px;'},'Não achei esse livro. Tenta digitar o título completo ou o autor.')); }
+      res.forEach(r=>{
+        resultsBox.appendChild(el('div',{style:'display:flex;gap:10px;align-items:center;padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--line);',
+          onmouseenter:(e)=>e.currentTarget.style.background='var(--paper-2)', onmouseleave:(e)=>e.currentTarget.style.background='transparent',
+          onclick:()=>{
+            title.value = r.title + (r.subtitle? ': '+r.subtitle : '');
+            if(r.author) author.value = r.author;
+            if(r.genre) genre.value = r.genre;
+            if(r.pages){ pages.value = r.pages; }
+            if(r.cover) setCover(r.cover);
+            resultsBox.style.display='none';
+            toast('Dados preenchidos! Confira e salve. ✨');
+          }},[
+          r.cover? el('img',{src:r.cover,style:'width:34px;height:50px;object-fit:cover;border-radius:4px;flex-shrink:0;'}) : el('div',{style:'width:34px;height:50px;border-radius:4px;background:var(--paper-2);flex-shrink:0;'}),
+          el('div',{style:'flex:1;min-width:0;font-size:12.5px;'},[
+            el('div',{style:'font-weight:800;'}, r.title),
+            el('div',{class:'muted'}, [r.author, r.pages? r.pages+' págs' : '', r.genre].filter(Boolean).join(' · '))
+          ])
+        ]));
+      });
+    }catch(e){
+      resultsBox.appendChild(el('div',{class:'muted',style:'padding:10px 12px;'},'Não consegui buscar agora (sem internet ou limite do serviço). Tenta de novo daqui a pouco.'));
+    }
+    searchBtn.disabled=false; searchBtn.textContent='🔍 Buscar dados do livro';
+  }},'🔍 Buscar dados do livro');
   const body=el('div',{},[
     el('div',{class:'field'},[el('label',{},'📷 Capa do livro'), coverPreview, fileInp, coverData? el('button',{type:'button',class:'btn-x',style:'margin-top:6px;',onclick:()=>{ coverData=''; coverPreview.innerHTML=''; coverPreview.appendChild(el('div',{},'Sem capa')); }},'✕ Remover foto') : null]),
-    el('div',{class:'field'},[el('label',{},'Título'), title]),
+    el('div',{class:'field'},[el('label',{},'Título'), title, searchBtn, resultsBox]),
     el('div',{class:'row'},[el('div',{class:'field'},[el('label',{},'Autor'), author]),el('div',{class:'field'},[el('label',{},'Gênero'), genre, genreList])]),
     el('div',{class:'row'},[el('div',{class:'field'},[el('label',{},'Total de páginas'), pages]),el('div',{class:'field'},[el('label',{},'Páginas lidas'), pagesRead])]),
     el('div',{class:'row'},[el('div',{class:'field'},[el('label',{},'Status'), statusSel]),el('div',{class:'field'},[el('label',{},'Prazo de leitura (opcional)'), dueDate])]),
