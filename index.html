@@ -3911,12 +3911,12 @@ RENDERERS.provas = function(main){
   function makeProvasTable(){
     const wrap = el('div',{class:'card',style:'padding:0;'});
     const table = el('table',{class:'provas-table', style:'width:100%;table-layout:fixed;border-collapse:collapse;font-size:12px;'});
-    const colWidths = [6,15,7,8,6,8,7,6,8,8,8,5,8];
+    const colWidths = [6,14,7,8,5,7,6,7,6,7,7,8,4,8];
     const colgroup = el('colgroup');
     colWidths.forEach(w=> colgroup.appendChild(el('col',{style:`width:${w}%;`})));
     table.appendChild(colgroup);
     const headRow = el('tr',{style:'background:var(--paper);'});
-    ['Órgão','Vara / Gabinete / Secretaria','Cidade','Inscrição até','Inscrito?','Data da prova','Modalidade','Teletrabalho','Bolsa','Colocação','Resultado','Link',''].forEach(h=>
+    ['Órgão','Vara / Gabinete / Secretaria','Cidade','Inscrição até','Inscrito?','Data da prova','Prova feita?','Modalidade','Teletrabalho','Bolsa','Colocação','Resultado','Link',''].forEach(h=>
       headRow.appendChild(el('th',{style:'text-align:left;padding:8px 6px;font-weight:700;color:#8a5a78;position:sticky;top:0;background:var(--paper);border-bottom:2px solid var(--line);font-size:10.5px;overflow-wrap:break-word;'},h))
     );
     table.appendChild(headRow);
@@ -4004,6 +4004,7 @@ function inlineSelectCell(value, options, onSave){
     tr.appendChild(inlineDateCell(p.inscricaoAte, v=>saveField('inscricaoAte',v), overdueInsc, p.inscricaoNaoSaiu?'📢 Ainda não saiu':null));
     tr.appendChild(inlineSelectCell(p.inscrito, [[true,'Sim','b-green'],[false,'Não','b-grey']], v=>saveField('inscrito', v==='true'||v===true)));
     tr.appendChild(inlineDateCell(p.dataProva, v=>saveField('dataProva',v)));
+    tr.appendChild(inlineSelectCell(!!p.provaFeita, [[true,'✔ Feita','b-green'],[false,'Não','b-grey']], v=>saveField('provaFeita', v==='true'||v===true)));
     tr.appendChild(inlineSelectCell(p.modalidade, [['online','Online','b-plum'],['presencial','Presencial','b-gold']], v=>saveField('modalidade',v)));
     tr.appendChild(inlineSelectCell(p.teletrabalho, [[true,'Sim','b-green'],[false,'Não','b-grey']], v=>saveField('teletrabalho', v==='true'||v===true)));
     tr.appendChild(inlineTextCell(p.bolsa, v=>saveField('bolsa',v), {placeholder:'R$'}));
@@ -4233,7 +4234,7 @@ function removeProvaFromAgenda(provaId){
 }
 function openProvaForm(p){
   const isNew=!p;
-  const f = isNew? {orgao:'TJPR',unidade:'',cidade:'',inscricaoAte:'',inscrito:false,inscricaoNaoSaiu:false,fase:'',edital:'',dataProva:'',horaProva:'',modalidade:'online',teletrabalho:false,dataFinal:'',bolsa:'',colocacao:'',resultado:'aguardando',link:'',obs:''} : {...p};
+  const f = isNew? {orgao:'TJPR',unidade:'',cidade:'',inscricaoAte:'',inscrito:false,inscricaoNaoSaiu:false,provaFeita:false,fase:'',edital:'',dataProva:'',horaProva:'',modalidade:'online',teletrabalho:false,dataFinal:'',bolsa:'',colocacao:'',resultado:'aguardando',link:'',obs:''} : {...p};
   const orgaoSel=el('select',{}); PROVA_ORGAOS.forEach(o=>orgaoSel.appendChild(el('option',{value:o, selected:f.orgao===o?'selected':undefined}, o)));
   const orgaoOutro=el('input',{value:PROVA_ORGAOS.includes(f.orgao)?'':f.orgao, placeholder:'Digite o órgão', style:PROVA_ORGAOS.includes(f.orgao)||!f.orgao?'display:none;':''});
   if(!PROVA_ORGAOS.includes(f.orgao) && f.orgao){ orgaoSel.value='Outro'; }
@@ -4249,6 +4250,7 @@ function openProvaForm(p){
   });
   const edital=el('input',{value:f.edital});
   const dataProva=el('input',{type:'date',value:f.dataProva});
+  const provaFeitaChk=el('input',{type:'checkbox'}); provaFeitaChk.checked=!!f.provaFeita;
   const horaProva=el('input',{type:'time',value:f.horaProva});
   const modalidadeSel=el('select',{}); [['online','Online'],['presencial','Presencial']].forEach(([v,l])=>modalidadeSel.appendChild(el('option',{value:v,selected:f.modalidade===v?'selected':undefined},l)));
   const teletrabalhoChk=el('input',{type:'checkbox'}); teletrabalhoChk.checked=!!f.teletrabalho;
@@ -4273,6 +4275,7 @@ function openProvaForm(p){
     ]),
     el('div',{class:'field'},[el('label',{style:'display:flex;align-items:center;gap:6px;color:var(--muted);'},[naoSaiuChk,'📢 Inscrição ainda não saiu (edital ainda não foi publicado)'])]),
     el('div',{class:'row'},[el('div',{class:'field'},[el('label',{},'Data da prova'), dataProva]),el('div',{class:'field'},[el('label',{},'Horário'), horaProva])]),
+    el('div',{class:'field'},[el('label',{style:'display:flex;align-items:center;gap:6px;'},[provaFeitaChk,'✍️ Prova feita (já realizei esta prova)'])]),
     el('div',{class:'row'},[
       el('div',{class:'field'},[el('label',{},'Modalidade'), modalidadeSel]),
       el('div',{class:'field'},[el('label',{style:'display:flex;align-items:center;gap:6px;margin-top:22px;'},[teletrabalhoChk,'Permite teletrabalho'])]),
@@ -4287,7 +4290,7 @@ function openProvaForm(p){
     el('button',{class:'btn btn-primary',onclick: async ()=>{
       if(!unidade.value.trim()){ toast('Digite a vara/gabinete/secretaria.'); return; }
       const orgaoFinal = orgaoSel.value==='Outro'? (orgaoOutro.value.trim()||'Outro') : orgaoSel.value;
-      const data={orgao:orgaoFinal,unidade:unidade.value.trim(),cidade:cidade.value.trim(),inscricaoAte:naoSaiuChk.checked?'':inscricaoAte.value,inscrito:inscritoChk.checked,inscricaoNaoSaiu:naoSaiuChk.checked,fase:faseSel.value,riscada:(faseSel.value?false:!!(p&&p.riscada)),edital:edital.value.trim(),dataProva:dataProva.value,horaProva:horaProva.value,modalidade:modalidadeSel.value,teletrabalho:teletrabalhoChk.checked,dataFinal:dataFinal.value,bolsa:bolsa.value.trim(),colocacao:colocacao.value.trim(),resultado:resultadoSel.value,link:link.value.trim(),obs:obs.value};
+      const data={orgao:orgaoFinal,unidade:unidade.value.trim(),cidade:cidade.value.trim(),inscricaoAte:naoSaiuChk.checked?'':inscricaoAte.value,inscrito:inscritoChk.checked,inscricaoNaoSaiu:naoSaiuChk.checked,provaFeita:provaFeitaChk.checked,fase:faseSel.value,riscada:(faseSel.value?false:!!(p&&p.riscada)),edital:edital.value.trim(),dataProva:dataProva.value,horaProva:horaProva.value,modalidade:modalidadeSel.value,teletrabalho:teletrabalhoChk.checked,dataFinal:dataFinal.value,bolsa:bolsa.value.trim(),colocacao:colocacao.value.trim(),resultado:resultadoSel.value,link:link.value.trim(),obs:obs.value};
       const target = isNew? {id:uid(),...data} : Object.assign(p,data);
       if(isNew) DB.provasEstagio.push(target);
       await saveKey('provasEstagio');
