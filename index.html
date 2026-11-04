@@ -3840,14 +3840,14 @@ let provasSubTab = 'provas';
 let provasShowFinal = false;
 let entrevistasShowFinal = false;
 const FASE_META = {
-  andamento:{icon:'🟡', title:'Em andamento', sub:'já me inscrevi — aguardando prova ou resultado'},
+  andamento:{icon:'🟡', title:'Em andamento', sub:'já me inscrevi — aguardando a prova ou o resultado'},
   proxima:{icon:'🔵', title:'Próximas', sub:'ainda vou me inscrever / inscrição ainda não saiu'},
-  finalizada:{icon:'✅', title:'Finalizadas', sub:'já aconteceram ou foram riscadas'}
+  finalizada:{icon:'✅', title:'Finalizadas', sub:'resultado já saiu, perdi o prazo ou foram riscadas'}
 };
 function provaFase(p){
   if(p.fase) return p.fase;
-  if(p.riscada || p.resultado==='nao-passei') return 'finalizada';
-  if(p.dataProva && p.dataProva<todayISO()) return 'finalizada';
+  if(p.riscada || p.resultado==='nao-passei' || p.resultado==='passei') return 'finalizada';
+  if(p.dataProva && p.dataProva<todayISO() && !p.inscrito) return 'finalizada';
   if(p.inscrito) return 'andamento';
   return 'proxima';
 }
@@ -3879,7 +3879,7 @@ RENDERERS.provas = function(main){
   main.appendChild(hero(isEnt?'🎤 Entrevistas':'📋 Provas de Estágio',
     isEnt? 'Suas entrevistas de seleção, separadas por fase.' : 'Suas seleções de estágio pós-graduação, tipo planilha.',
     isEnt? `Aqui ficam as entrevistas${userName()?', '+userName():''} — o que vem aí, o que já fez e está esperando resposta, e o que já acabou.`
-          : `Cada linha é uma vaga ou processo seletivo que você está acompanhando${userName()?', '+userName():''} — as provas descem sozinhas para Finalizadas quando a data passa, ou você risca com o ✓.`,
+          : `Cada linha é uma vaga ou processo seletivo que você está acompanhando${userName()?', '+userName():''} — a prova vai para Finalizadas quando o resultado sai (Passei ou Não passei), ou quando você risca com o ✓.`,
     [el('button',{class:'btn-hero',onclick:()=> isEnt? openEntrevistaForm(null) : openProvaForm(null)}, isEnt?'+ Nova entrevista':'+ Nova prova')]));
   main.appendChild(provasTabsBar());
   if(isEnt){ renderEntrevistas(main); return; }
